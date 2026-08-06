@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-orange-hot: #FF6B35;
+  --color-orange-warm: #FF8C42;
+  --color-orange-light: #FFB347;
+
+  --color-purple-deep: #7B2D8B;
+  --color-purple-mid: #9C4DB8;
+  --color-purple-light: #BD7FE0;
+
+  --color-gold: #FFD700;
+  --color-gold-dark: #B8860B;
+
+  --color-bg-dark: #0D0D1A;
+  --color-surface-dark: #1A1A2E;
+  --color-surface2-dark: #16213E;
+  --color-surface3-dark: #0F3460;
+
+  --color-on-bg-dark: #F0EBF8;
+  --color-on-surface-dark: #E8E0F0;
+  --color-on-surface-variant-dark: #B0A8C4;
+  --color-outline-dark: #4A4060;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background-color: var(--color-bg-dark);
+  color: var(--color-on-bg-dark);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+}
+
+/* FullCalendar theme overrides to match brand */
+.fc {
+  --fc-border-color: var(--color-outline-dark);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: var(--color-surface-dark);
+  --fc-list-event-hover-bg-color: var(--color-surface2-dark);
+  --fc-today-bg-color: rgba(255, 107, 53, 0.12);
+  font-family: var(--font-body);
+}
+
+.fc .fc-toolbar-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+.fc-theme-standard td,
+.fc-theme-standard th {
+  border-color: var(--color-outline-dark);
+}
+
+.fc .fc-daygrid-day-number,
+.fc .fc-col-header-cell-cushion {
+  color: var(--color-on-surface-dark);
+}
+
+.fc-event {
+  cursor: pointer;
+  border: none !important;
+}
