@@ -1,0 +1,32 @@
+# .gitignore per SagreAI
+
+# Build outputs
+.gradle/
+build/
+app/build/
+
+# Secrets — MAI committare!
+local.properties
+*.keystore
+*.jks
+
+# Android Studio
+.idea/
+*.iml
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# ProGuard output
+app/proguard
+proguard/
+
+# Test reports
+app/lint.xml

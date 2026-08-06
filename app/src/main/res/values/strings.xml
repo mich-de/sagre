@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SagreAI</string>
+
+    <!-- HomeScreen -->
+    <string name="home_title">Scansiona una\nlocandina di sagra</string>
+    <string name="home_subtitle">Estraggo date, orari, location e contatti\nautomaticamente con l\'AI</string>
+    <string name="btn_gallery">Scegli dalla Galleria</string>
+    <string name="btn_camera">Scatta una foto</string>
+
+    <!-- Estrazione -->
+    <string name="loading_ocr">Lettura testo in corso…</string>
+    <string name="loading_ai">Gemini AI sta analizzando…</string>
+    <string name="loading_ocr_subtitle">Elaborazione on-device con ML Kit</string>
+    <string name="loading_ai_subtitle">Estrazione intelligente di date, orari e location</string>
+
+    <!-- Results -->
+    <string name="result_dates">DATE</string>
+    <string name="result_times">ORARI</string>
+    <string name="result_location">DOVE</string>
+    <string name="result_prices">PREZZI</string>
+    <string name="result_contacts">CONTATTI</string>
+    <string name="result_raw_text">TESTO ESTRATTO</string>
+    <string name="open_maps">📍 Apri in Google Maps</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Impostazioni</string>
+    <string name="settings_api_key_label">API Key</string>
+    <string name="settings_api_key_hint">AIza…</string>
+    <string name="settings_save_key">Salva chiave API</string>
+    <string name="settings_key_saved">Chiave salvata!</string>
+
+    <!-- History -->
+    <string name="history_title">Cronologia</string>
+    <string name="history_empty">Nessuna sagra salvata</string>
+    <string name="history_empty_subtitle">Scansiona la prima locandina!</string>
+
+    <!-- Permissions -->
+    <string name="permission_camera_rationale">SagreAI ha bisogno della fotocamera per scansionare direttamente le locandine delle sagre.</string>
+    <string name="permission_storage_rationale">SagreAI ha bisogno di accedere alle foto per analizzare le locandine salvate nel tuo dispositivo.</string>
+
+    <!-- Share -->
+    <string name="share_extracted_by">Estratto con SagreAI 🤖</string>
+    <string name="share_chooser_title">Condividi sagra</string>
+
+    <!-- Content descriptions -->
+    <string name="cd_back">Indietro</string>
+    <string name="cd_history">Cronologia</string>
+    <string name="cd_settings">Impostazioni</string>
+    <string name="cd_share">Condividi</string>
+    <string name="cd_delete">Elimina</string>
+</resources>

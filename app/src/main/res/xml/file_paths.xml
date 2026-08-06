@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <cache-path name="sagre_images" path="images/" />
+    <cache-path name="ics_events" path="ics_events/" />
+    <cache-path name="all_cache" path="." />
+    <external-cache-path name="sagre_images_external" path="images/" />
+</paths>
