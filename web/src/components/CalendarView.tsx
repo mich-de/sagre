@@ -27,6 +27,8 @@ export function CalendarView({ events, onSelectEvent }: CalendarViewProps) {
           end: e.end,
           allDay: e.allDay,
           backgroundColor: category.color,
+          borderColor: category.color,
+          textColor: '#FBF6EA',
           extendedProps: { sourceId: e.id },
         }
       }),
@@ -38,35 +40,49 @@ export function CalendarView({ events, onSelectEvent }: CalendarViewProps) {
     if (found) onSelectEvent(found)
   }
 
+  /* Le sagre lunghe attraversano più righe della griglia: le frecce dicono
+     da che parte il blocco continua, così una festa di quattro giorni non
+     sembra quattro feste diverse. */
   function renderEventContent(arg: EventContentArg) {
+    const continuesBefore = !arg.isStart
+    const continuesAfter = !arg.isEnd
     return (
-      <div className="truncate px-1 text-xs font-medium">
-        {!arg.event.allDay && (
-          <span className="mr-1 opacity-80">{arg.timeText}</span>
+      <div className="flex items-center gap-1 px-1.5 py-0.5 text-[0.68rem] leading-tight font-semibold">
+        {continuesBefore && <span aria-hidden>‹</span>}
+        {arg.isStart && !arg.event.allDay && arg.timeText && (
+          <span className="shrink-0 tabular-nums opacity-75">{arg.timeText}</span>
         )}
-        {arg.event.title}
+        <span className="truncate">{arg.event.title}</span>
+        {continuesAfter && <span className="ml-auto shrink-0" aria-hidden>›</span>}
       </div>
     )
   }
 
   return (
-    <div className="rounded-2xl border border-[var(--color-outline-dark)] bg-[var(--color-surface-dark)] p-2 shadow-xl sm:p-4">
-      <FullCalendar
-        plugins={[dayGridPlugin, listPlugin, interactionPlugin]}
-        initialView={isMobile ? 'listMonth' : 'dayGridMonth'}
-        locale={itLocale}
-        headerToolbar={{
-          left: 'prev,next today',
-          center: 'title',
-          right: isMobile ? 'listMonth,dayGridMonth' : 'dayGridMonth,listMonth',
-        }}
-        height="auto"
-        events={fcEvents}
-        eventClick={handleEventClick}
-        eventContent={renderEventContent}
-        dayMaxEvents={3}
-        firstDay={1}
-      />
+    <div className="ink-box overflow-hidden">
+      {/* Bandierine lungo il bordo superiore del cartellone. */}
+      <div className="bunting" aria-hidden />
+      <div className="p-3 sm:p-5">
+        <FullCalendar
+          plugins={[dayGridPlugin, listPlugin, interactionPlugin]}
+          initialView={isMobile ? 'listMonth' : 'dayGridMonth'}
+          locale={itLocale}
+          headerToolbar={{
+            left: 'prev,next today',
+            center: 'title',
+            right: isMobile ? 'listMonth,dayGridMonth' : 'dayGridMonth,listMonth',
+          }}
+          buttonText={{ today: 'Oggi', month: 'Griglia', list: 'Elenco' }}
+          height="auto"
+          events={fcEvents}
+          eventClick={handleEventClick}
+          eventContent={renderEventContent}
+          dayMaxEvents={isMobile ? 3 : 4}
+          eventOrder="start,-duration,allDay,title"
+          firstDay={1}
+          noEventsText="Nessun appuntamento in cartellone questo mese."
+        />
+      </div>
     </div>
   )
 }

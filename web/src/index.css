@@ -1,107 +1,480 @@
 @import "tailwindcss";
 
+/* =========================================================================
+   MANIFESTO DI PAESE
+   Il sito è un manifesto tipografico affisso al muro: carta ingiallita,
+   inchiostro nero caldo, un vermiglio da serigrafia, regole doppie da
+   giornale murale e ombre offset senza sfocatura (stampa fuori registro).
+   ========================================================================= */
+
 @theme {
-  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
-  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Bodoni Moda", "Times New Roman", Georgia, serif;
+  --font-body: "Archivo", ui-sans-serif, system-ui, sans-serif;
 
-  --color-orange-hot: #FF6B35;
-  --color-orange-warm: #FF8C42;
-  --color-orange-light: #FFB347;
+  /* Carta */
+  --color-paper: #f2e9d8;
+  --color-paper-hi: #fbf6ea;
+  --color-paper-2: #e6dac1;
+  --color-paper-3: #d9caab;
 
-  --color-purple-deep: #7B2D8B;
-  --color-purple-mid: #9C4DB8;
-  --color-purple-light: #BD7FE0;
+  /* Inchiostro */
+  --color-ink: #171310;
+  --color-ink-soft: #574b3d;
+  --color-ink-faint: #8d7f6c;
 
-  --color-gold: #FFD700;
-  --color-gold-dark: #B8860B;
-
-  --color-bg-dark: #0D0D1A;
-  --color-surface-dark: #1A1A2E;
-  --color-surface2-dark: #16213E;
-  --color-surface3-dark: #0F3460;
-
-  --color-on-bg-dark: #F0EBF8;
-  --color-on-surface-dark: #E8E0F0;
-  --color-on-surface-variant-dark: #B0A8C4;
-  --color-outline-dark: #4A4060;
+  /* Colori di stampa */
+  --color-vermiglio: #c8321e;
+  --color-vino: #6e1f3c;
+  --color-oliva: #41601f;
+  --color-ottanio: #175b6b;
+  --color-senape: #8a6a0a;
+  --color-prugna: #7a3b78;
+  --color-terracotta: #a8531c;
 }
+
+/* ---------------------------------------------------------------- base -- */
 
 html {
   scroll-behavior: smooth;
+  background-color: var(--color-paper);
 }
 
 body {
   margin: 0;
   font-family: var(--font-body);
-  background-color: var(--color-bg-dark);
-  color: var(--color-on-bg-dark);
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  /* Trama sottile della carta: righe orizzontali quasi invisibili. */
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(23, 19, 16, 0.022) 0px,
+    rgba(23, 19, 16, 0.022) 1px,
+    transparent 1px,
+    transparent 4px
+  );
 }
 
-h1, h2, h3, h4 {
+/* Grana della carta, sopra al contenuto ma sotto ai livelli modali. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  opacity: 0.55;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.3'/%3E%3C/svg%3E");
+}
+
+h1,
+h2,
+h3,
+h4 {
   font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.015em;
 }
 
-/* FullCalendar theme overrides to match brand */
-.fc {
-  --fc-border-color: var(--color-outline-dark);
-  --fc-page-bg-color: transparent;
-  --fc-neutral-bg-color: var(--color-surface-dark);
-  --fc-list-event-hover-bg-color: var(--color-surface2-dark);
-  --fc-today-bg-color: rgba(255, 107, 53, 0.12);
+::selection {
+  background: var(--color-vermiglio);
+  color: var(--color-paper-hi);
+}
+
+/* --------------------------------------------------- oggetti di stampa -- */
+
+/* Occhiello: piccole maiuscole spaziate, come le diciture di servizio. */
+.eyebrow {
   font-family: var(--font-body);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+
+/* Riquadro inchiostrato con ombra offset piena: stampa fuori registro. */
+.ink-box {
+  border: 2px solid var(--color-ink);
+  background-color: var(--color-paper-hi);
+  box-shadow: 5px 5px 0 var(--color-ink);
+}
+
+.ink-box-sm {
+  border: 2px solid var(--color-ink);
+  background-color: var(--color-paper-hi);
+  box-shadow: 3px 3px 0 var(--color-ink);
+}
+
+/* Pulsante-timbro: si "preme" verso la propria ombra. */
+.stamp-btn {
+  border: 2px solid var(--color-ink);
+  box-shadow: 3px 3px 0 var(--color-ink);
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease;
+}
+.stamp-btn:hover:not(:disabled) {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 var(--color-ink);
+}
+.stamp-btn:active:not(:disabled) {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 var(--color-ink);
+}
+.stamp-btn:disabled {
+  opacity: 0.5;
+  box-shadow: 3px 3px 0 var(--color-ink-faint);
+}
+
+/* Regola doppia da giornale murale. */
+.rule-double {
+  border-top: 3px solid var(--color-ink);
+  border-bottom: 1px solid var(--color-ink);
+  height: 4px;
+}
+
+/* Retino a mezzatinta per gli sfondi decorativi. */
+.halftone {
+  background-image: radial-gradient(var(--color-ink) 1px, transparent 1px);
+  background-size: 7px 7px;
+  opacity: 0.13;
+}
+
+/* Bandierine da sagra, disegnate in CSS lungo un bordo. */
+.bunting {
+  height: 14px;
+  background-image: linear-gradient(135deg, var(--color-ink) 25%, transparent 25%),
+    linear-gradient(225deg, var(--color-ink) 25%, transparent 25%);
+  background-size: 16px 16px;
+  background-repeat: repeat-x;
+  background-position: top left;
+}
+
+/* ------------------------------------------------------------ motion -- */
+
+@keyframes ink-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes stamp-in {
+  0% {
+    opacity: 0;
+    transform: scale(1.06) rotate(-1.2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-ink-rise {
+  animation: ink-rise 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-stamp-in {
+  animation: stamp-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.marquee-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: marquee 38s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-ink-rise,
+  .animate-stamp-in,
+  .marquee-track {
+    animation: none !important;
+  }
+  .stamp-btn:hover:not(:disabled),
+  .stamp-btn:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------ FullCalendar -- */
+/* Obiettivo: una griglia *stampata*, non un widget. Filetti sottili,
+   intestazioni in maiuscoletto spaziato, numeri in Bodoni.              */
+
+.fc {
+  --fc-border-color: rgba(23, 19, 16, 0.22);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: var(--color-paper-2);
+  --fc-list-event-hover-bg-color: var(--color-paper-2);
+  --fc-today-bg-color: rgba(200, 50, 30, 0.07);
+  font-family: var(--font-body);
+  color: var(--color-ink);
+}
+
+/* Testata */
+.fc .fc-toolbar.fc-header-toolbar {
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--color-ink);
+  flex-wrap: wrap;
+  gap: 0.6rem;
 }
 
 .fc .fc-toolbar-title {
   font-family: var(--font-display);
-  font-weight: 600;
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-transform: capitalize;
 }
 
-.fc-theme-standard td,
+@media (max-width: 640px) {
+  .fc .fc-toolbar-title {
+    font-size: 1.25rem;
+  }
+  .fc .fc-toolbar.fc-header-toolbar {
+    justify-content: center;
+  }
+}
+
+/* Intestazioni dei giorni */
 .fc-theme-standard th {
-  border-color: var(--color-outline-dark);
+  border-color: var(--color-ink);
+  border-width: 0 0 2px 0;
 }
 
-.fc .fc-daygrid-day-number,
 .fc .fc-col-header-cell-cushion {
-  color: var(--color-on-surface-dark);
+  padding: 0.5rem 0.35rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
 }
 
+/* Celle */
+.fc-theme-standard td,
+.fc-theme-standard .fc-scrollgrid {
+  border-color: rgba(23, 19, 16, 0.2);
+}
+
+.fc-theme-standard .fc-scrollgrid {
+  border-width: 0;
+}
+
+.fc .fc-daygrid-day-number {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-ink-soft);
+  padding: 0.3rem 0.45rem;
+}
+
+.fc .fc-day-other .fc-daygrid-day-number {
+  opacity: 0.32;
+}
+
+/* Oggi: numero cerchiato a inchiostro rosso, come segnato a penna. */
+.fc .fc-day-today .fc-daygrid-day-number {
+  color: var(--color-paper-hi);
+  background: var(--color-vermiglio);
+  border-radius: 999px;
+  min-width: 1.6rem;
+  text-align: center;
+  padding: 0.15rem 0.4rem;
+  margin: 0.25rem;
+}
+
+/* Eventi: blocchi pieni con filetto d'inchiostro. */
 .fc-event {
   cursor: pointer;
   border: none !important;
+  border-radius: 3px !important;
+  box-shadow: 1.5px 1.5px 0 var(--color-ink);
+  transition:
+    transform 110ms ease,
+    box-shadow 110ms ease;
 }
 
-/* Toolbar buttons: the selected view must read as selected, so give the
-   active state the brand accent instead of FullCalendar's darker default. */
-.fc .fc-button-primary {
-  background-color: var(--color-surface2-dark);
-  border-color: var(--color-outline-dark);
-  color: var(--color-on-surface-dark);
-  font-weight: 500;
+.fc-daygrid-event {
+  margin: 1.5px 3px !important;
+  padding: 0 !important;
 }
 
-.fc .fc-button-primary:hover:not(:disabled) {
-  background-color: var(--color-outline-dark);
-  border-color: var(--color-outline-dark);
+.fc-event:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 2.5px 2.5px 0 var(--color-ink);
 }
 
-.fc .fc-button-primary:disabled {
-  background-color: var(--color-surface-dark);
-  border-color: var(--color-outline-dark);
-  color: var(--color-on-surface-variant-dark);
-  opacity: 1;
-}
-
-.fc .fc-button-primary:not(:disabled).fc-button-active,
-.fc .fc-button-primary:not(:disabled):active {
-  background-color: var(--color-orange-hot);
-  border-color: var(--color-orange-hot);
-  color: #fff;
+/* Le sagre lunghe sono un blocco unico che attraversa la settimana: niente
+   angoli tondi sui lati in cui il blocco prosegue. */
+.fc-daygrid-block-event .fc-event-title {
+  padding: 0;
   font-weight: 600;
 }
 
+.fc-event.fc-event-start:not(.fc-event-end) {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+.fc-event.fc-event-end:not(.fc-event-start) {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+.fc-event:not(.fc-event-start):not(.fc-event-end) {
+  border-radius: 0 !important;
+}
+
+/* Riquadro "+n altri": un foglietto di carta appuntato. */
+.fc .fc-popover {
+  border: 2px solid var(--color-ink);
+  border-radius: 0;
+  background: var(--color-paper-hi);
+  box-shadow: 5px 5px 0 var(--color-ink);
+}
+
+.fc .fc-popover-header {
+  background: var(--color-paper-2);
+  border-bottom: 2px solid var(--color-ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: capitalize;
+  color: var(--color-ink);
+}
+
+.fc .fc-daygrid-more-link {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-vermiglio);
+}
+
+/* Vista elenco */
+.fc .fc-list {
+  border-color: var(--color-ink);
+  border-width: 0;
+}
+
+.fc .fc-list-day-cushion {
+  background: var(--color-paper-2);
+  border-top: 2px solid var(--color-ink);
+  border-bottom: 1px solid var(--color-ink);
+}
+
+.fc .fc-list-day-text,
+.fc .fc-list-day-side-text {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 800;
+  text-transform: capitalize;
+  color: var(--color-ink);
+}
+
+.fc .fc-list-event {
+  cursor: pointer;
+}
+
+.fc .fc-list-event-title {
+  font-weight: 600;
+}
+
+.fc .fc-list-event-time {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink-soft);
+}
+
+.fc .fc-list-event-dot {
+  border-width: 6px;
+  border-radius: 0; /* quadratino tipografico, non pallino */
+}
+
+.fc-theme-standard .fc-list-table td,
+.fc-theme-standard .fc-list-day > * {
+  border-color: rgba(23, 19, 16, 0.2);
+}
+
+.fc .fc-list-empty {
+  background: transparent;
+  font-size: 0.875rem;
+  color: var(--color-ink-faint);
+}
+
+/* Pulsanti della testata: timbri d'inchiostro. */
+.fc .fc-button-primary,
+.fc .fc-button-primary:disabled {
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.4rem 0.7rem;
+  border-radius: 2px;
+  background-color: var(--color-paper-hi);
+  border: 2px solid var(--color-ink);
+  color: var(--color-ink);
+  box-shadow: 2px 2px 0 var(--color-ink);
+  opacity: 1;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease;
+}
+
+.fc .fc-button-primary:not(:disabled):hover {
+  background-color: var(--color-paper-2);
+  border-color: var(--color-ink);
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--color-ink);
+}
+
+/* Vista selezionata: inchiostrata in pieno. */
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+  background-color: var(--color-vermiglio);
+  border-color: var(--color-ink);
+  color: var(--color-paper-hi);
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--color-ink);
+}
+
+.fc .fc-button-primary:disabled {
+  color: var(--color-ink-faint);
+  border-color: var(--color-ink-faint);
+  box-shadow: 2px 2px 0 var(--color-ink-faint);
+}
+
+.fc .fc-button-primary:focus,
 .fc .fc-button-primary:focus-visible {
-  outline: 2px solid var(--color-orange-hot);
+  outline: 2px solid var(--color-vermiglio);
   outline-offset: 2px;
-  box-shadow: none;
+  box-shadow: 2px 2px 0 var(--color-ink);
+}
+
+.fc .fc-button-group > .fc-button {
+  margin-left: 0.35rem;
+}
+.fc .fc-button-group > .fc-button:first-child {
+  margin-left: 0;
+}
+
+/* Barra di scorrimento coerente con la carta. */
+* {
+  scrollbar-color: var(--color-ink-faint) transparent;
+  scrollbar-width: thin;
 }

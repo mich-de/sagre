@@ -1,44 +1,84 @@
 import { Link, useLocation } from 'react-router-dom'
 import { CalendarDays, ShieldCheck } from 'lucide-react'
 
+const TODAY_LINE = new Date().toLocaleDateString('it-IT', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+})
+
 export function Header() {
   const location = useLocation()
   const isAdmin = location.pathname.startsWith('/admin')
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[var(--color-outline-dark)] bg-[var(--color-bg-dark)]/90 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
-        <Link to="/" className="flex items-center gap-2">
-          <span
-            className="flex h-9 w-9 items-center justify-center rounded-xl text-lg"
-            style={{ background: 'linear-gradient(135deg, var(--color-orange-hot), var(--color-purple-mid))' }}
-          >
-            🎪
+    <header className="sticky top-0 z-40 border-b-2 border-ink bg-paper/95 backdrop-blur-sm">
+      {/* Filetto di servizio: data a sinistra, dicitura a destra. */}
+      <div className="border-b border-ink/25">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-1 sm:px-6">
+          <span className="eyebrow truncate">{TODAY_LINE}</span>
+          <span className="eyebrow hidden sm:block">Affisso al muro dal 2026</span>
+        </div>
+      </div>
+
+      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+        <Link to="/" className="group flex items-baseline gap-2.5">
+          <span className="relative flex h-9 w-9 shrink-0 translate-y-1 items-center justify-center border-2 border-ink bg-vermiglio text-paper-hi shadow-[2px_2px_0_var(--color-ink)] transition-transform group-hover:-rotate-3">
+            <span className="font-display text-lg font-black leading-none">S</span>
           </span>
-          <span className="font-[var(--font-display)] text-lg font-semibold tracking-tight text-[var(--color-on-bg-dark)]">
-            Eventi <span className="text-[var(--color-orange-warm)]">e</span> Sagre
+          <span className="font-display text-2xl leading-none font-black tracking-tight text-ink sm:text-3xl">
+            Eventi <span className="font-normal italic text-vermiglio">e</span> Sagre
           </span>
         </Link>
 
-        <nav className="flex items-center gap-4 text-sm text-[var(--color-on-surface-variant-dark)]">
-          <Link
-            to="/"
-            className="flex items-center gap-1.5 transition-colors hover:text-[var(--color-on-bg-dark)]"
-          >
-            <CalendarDays size={16} />
-            <span className="hidden sm:inline">Calendario</span>
-          </Link>
-          <Link
-            to="/admin"
-            className={`flex items-center gap-1.5 transition-colors hover:text-[var(--color-on-bg-dark)] ${
-              isAdmin ? 'text-[var(--color-orange-warm)]' : ''
-            }`}
-          >
-            <ShieldCheck size={16} />
-            <span className="hidden sm:inline">Admin</span>
-          </Link>
+        <nav className="flex shrink-0 items-center gap-1.5">
+          <NavLink to="/" active={!isAdmin} icon={<CalendarDays size={14} />} label="Calendario" />
+          <NavLink to="/admin" active={isAdmin} icon={<ShieldCheck size={14} />} label="Admin" />
         </nav>
       </div>
+
+      {/* Ticker: nastro d'inchiostro con le voci ricorrenti della sagra. */}
+      <div className="overflow-hidden border-t-2 border-ink bg-ink py-1 text-paper-hi">
+        <div className="marquee-track">
+          {[0, 1].map((copy) => (
+            <span key={copy} className="flex shrink-0 items-center" aria-hidden={copy === 1}>
+              {['Sagre', 'Feste patronali', 'Mercatini', 'Concerti in piazza', 'Fiere', 'Palii', 'Processioni', 'Street food'].map(
+                (word) => (
+                  <span key={word} className="flex items-center">
+                    <span className="px-4 text-[0.6rem] font-semibold tracking-[0.22em] uppercase">{word}</span>
+                    <span className="text-vermiglio">✳</span>
+                  </span>
+                )
+              )}
+            </span>
+          ))}
+        </div>
+      </div>
     </header>
+  )
+}
+
+function NavLink({
+  to,
+  active,
+  icon,
+  label,
+}: {
+  to: string
+  active: boolean
+  icon: React.ReactNode
+  label: string
+}) {
+  return (
+    <Link
+      to={to}
+      className={`stamp-btn flex items-center gap-1.5 px-2.5 py-1.5 text-[0.65rem] font-bold tracking-[0.12em] uppercase ${
+        active ? 'bg-ink text-paper-hi' : 'bg-paper-hi text-ink hover:bg-paper-2'
+      }`}
+    >
+      {icon}
+      <span className="hidden sm:inline">{label}</span>
+    </Link>
   )
 }
