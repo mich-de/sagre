@@ -84,10 +84,22 @@ export function EventModal({ event, onClose }: EventModalProps) {
               <button
                 type="button"
                 onClick={() => setZoomed(true)}
-                className="group h-full w-full cursor-zoom-in"
+                className="group relative h-full w-full cursor-zoom-in"
                 aria-label="Ingrandisci la locandina"
               >
-                <img src={posterUrl} alt={`Locandina di ${event.title}`} className="h-full w-full object-cover" />
+                {/* La locandina va vista intera: sfocata a riempire lo sfondo,
+                    nitida e completa in primo piano. */}
+                <img
+                  src={posterUrl}
+                  alt=""
+                  aria-hidden
+                  className="absolute inset-0 h-full w-full scale-110 object-cover blur-xl brightness-90"
+                />
+                <img
+                  src={posterUrl}
+                  alt={`Locandina di ${event.title}`}
+                  className="relative h-full w-full object-contain"
+                />
                 <span className="absolute inset-0 flex items-end justify-end p-3 transition-colors group-hover:bg-ink/20">
                   <span className="flex items-center gap-1.5 border-2 border-ink bg-paper-hi px-2.5 py-1 text-[0.6rem] font-bold tracking-[0.12em] uppercase text-ink shadow-[2px_2px_0_var(--color-ink)]">
                     <Expand size={12} />
@@ -106,7 +118,7 @@ export function EventModal({ event, onClose }: EventModalProps) {
                   {start.getDate()}
                   {multiDay && (
                     <>
-                      <span className="text-3xl font-normal text-vermiglio sm:text-4xl">–</span>
+                      <span className="text-3xl font-normal text-vermiglio sm:text-4xl">-</span>
                       {end.getDate()}
                     </>
                   )}

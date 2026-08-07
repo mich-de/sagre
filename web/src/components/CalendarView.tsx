@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import listPlugin from '@fullcalendar/list'
@@ -13,8 +13,20 @@ interface CalendarViewProps {
   onSelectEvent: (event: CalendarEvent) => void
 }
 
+const MOBILE_QUERY = '(max-width: 640px)'
+
 export function CalendarView({ events, onSelectEvent }: CalendarViewProps) {
-  const [isMobile] = useState(() => window.matchMedia('(max-width: 640px)').matches)
+  /* La griglia mensile è illeggibile sotto i 640px, quindi lì si parte
+     dall'elenco. Il breakpoint va inseguito anche dopo il primo render:
+     ruotando il telefono, altrimenti, si resta sulla vista sbagliata. */
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_QUERY).matches)
+
+  useEffect(() => {
+    const mq = window.matchMedia(MOBILE_QUERY)
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
 
   const fcEvents = useMemo(
     () =>
@@ -64,9 +76,11 @@ export function CalendarView({ events, onSelectEvent }: CalendarViewProps) {
       <div className="bunting" aria-hidden />
       <div className="p-3 sm:p-5">
         <FullCalendar
+          key={isMobile ? 'mobile' : 'desktop'}
           plugins={[dayGridPlugin, listPlugin, interactionPlugin]}
           initialView={isMobile ? 'listMonth' : 'dayGridMonth'}
           locale={itLocale}
+          eventTimeFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
           headerToolbar={{
             left: 'prev,next today',
             center: 'title',

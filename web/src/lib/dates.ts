@@ -81,15 +81,17 @@ export function shortDate(value: string | Date): string {
   return fmt(d, { day: 'numeric', month: 'short' })
 }
 
-/** Intervallo compatto: "12 ago" oppure "12–14 ago". */
+/** Intervallo compatto: "12 ago" oppure "12-14 ago".
+ *  Trattino semplice e non lineetta: il subset di Bodoni Moda servito da
+ *  Google Fonts non contiene U+2013, che finirebbe come spazio vuoto. */
 export function shortRange(event: CalendarEvent): string {
   const from = eventStart(event)
   const to = eventEndInclusive(event)
   if (isSameDay(from, to)) return shortDate(from)
   const sameMonth = from.getMonth() === to.getMonth() && from.getFullYear() === to.getFullYear()
   return sameMonth
-    ? `${from.getDate()}–${to.getDate()} ${fmt(to, { month: 'short' })}`
-    : `${shortDate(from)} – ${shortDate(to)}`
+    ? `${from.getDate()}-${to.getDate()} ${fmt(to, { month: 'short' })}`
+    : `${shortDate(from)} - ${shortDate(to)}`
 }
 
 /** Riga distesa per la scheda evento. */
