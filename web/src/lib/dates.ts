@@ -33,12 +33,25 @@ export function eventEndExclusive(event: CalendarEvent): Date {
   return parseEventDate(event.end)
 }
 
-/** Fine inclusiva: l'ultimo giorno/istante da mostrare all'utente. */
+/** Fine inclusiva: l'ultimo giorno da mostrare all'utente.
+ *
+ *  Con orario: una festa che va dalle 20:00 a mezzanotte in punto appartiene
+ *  ancora al giorno in cui è cominciata. È la stessa soglia (`nextDayThreshold`)
+ *  che usa FullCalendar per decidere se disegnare il blocco anche il giorno
+ *  dopo — senza allinearsi, la griglia mostra un giorno e il testo ne annuncia
+ *  due. Chi tira davvero fino all'una di notte resta a due giorni. */
 export function eventEndInclusive(event: CalendarEvent): Date {
   const end = parseEventDate(event.end)
-  if (!event.allDay) return end
-  const inclusive = new Date(end.getTime() - DAY_MS)
   const start = eventStart(event)
+
+  if (!event.allDay) {
+    const atMidnight = end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0
+    if (!atMidnight) return end
+    const previous = new Date(end.getTime() - 1)
+    return previous < start ? start : previous
+  }
+
+  const inclusive = new Date(end.getTime() - DAY_MS)
   return inclusive < start ? start : inclusive
 }
 
@@ -116,14 +129,17 @@ export function formatDateRange(event: CalendarEvent): string {
     return `Da ${fromStr} a ${toStr}`
   }
 
+  /* Gli orari si leggono sempre sulla fine reale: l'inclusiva, per un evento
+     che chiude a mezzanotte, è le 23:59:59.999 del giorno prima. */
+  const until = eventEndExclusive(event)
   if (sameDay) {
-    return `${cap(fmt(from, { weekday: 'long', day: 'numeric', month: 'long' }))} · ${time(from)}–${time(to)}`
+    return `${cap(fmt(from, { weekday: 'long', day: 'numeric', month: 'long' }))} · ${time(from)}–${time(until)}`
   }
-  return `${cap(fmt(from, { weekday: 'short', day: 'numeric', month: 'short' }))} ${time(from)} → ${fmt(to, {
+  return `${cap(fmt(from, { weekday: 'short', day: 'numeric', month: 'short' }))} ${time(from)} → ${fmt(until, {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
-  })} ${time(to)}`
+  })} ${time(until)}`
 }
 
 /** "3 giorni" / "1 giorno" — usato come pastiglia sulle sagre lunghe. */
