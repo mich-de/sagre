@@ -406,7 +406,9 @@ function EventEditor({
         return loaded
       })
       .then((loaded) => {
-        if (!cancelled) setMedia(loaded)
+        /* Anche il solo caricamento aggiorna il cruscotto: dopo la migrazione
+           di una vecchia copertina l'evento ha finalmente la sua miniatura. */
+        if (!cancelled) commit(loaded)
       })
       .catch(() => {
         if (!cancelled) setMedia({ ...EMPTY_MEDIA, eventId: event.id })
