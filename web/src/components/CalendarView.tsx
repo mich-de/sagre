@@ -59,13 +59,13 @@ export function CalendarView({ events, onSelectEvent }: CalendarViewProps) {
     const continuesBefore = !arg.isStart
     const continuesAfter = !arg.isEnd
     return (
-      <div className="flex items-center gap-1 px-1.5 py-0.5 text-[0.68rem] leading-tight font-semibold">
-        {continuesBefore && <span aria-hidden>‹</span>}
+      <div className="flex w-full min-w-0 items-center gap-1 overflow-hidden px-1.5 py-0.5 text-[0.68rem] leading-tight font-semibold">
+        {continuesBefore && <span className="shrink-0" aria-hidden>‹</span>}
         {arg.isStart && !arg.event.allDay && arg.timeText && (
           <span className="shrink-0 tabular-nums opacity-75">{arg.timeText}</span>
         )}
-        <span className="truncate">{arg.event.title}</span>
-        {continuesAfter && <span className="ml-auto shrink-0" aria-hidden>›</span>}
+        <span className="min-w-0 flex-1 truncate">{arg.event.title}</span>
+        {continuesAfter && <span className="shrink-0" aria-hidden>›</span>}
       </div>
     )
   }
@@ -89,6 +89,9 @@ export function CalendarView({ events, onSelectEvent }: CalendarViewProps) {
           buttonText={{ today: 'Oggi', month: 'Griglia', list: 'Elenco' }}
           height="auto"
           events={fcEvents}
+          /* Tutti a blocco pieno: gli eventi con orario, lasciati al "puntino"
+             predefinito, restavano testo nudo che tracimava nelle celle vicine. */
+          eventDisplay="block"
           eventClick={handleEventClick}
           eventContent={renderEventContent}
           dayMaxEvents={isMobile ? 3 : 4}

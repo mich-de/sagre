@@ -313,6 +313,9 @@ h4 {
 .fc-daygrid-event {
   margin: 1.5px 3px !important;
   padding: 0 !important;
+  /* Senza questo un titolo lungo esce dalla cella e si sovrappone al giorno
+     accanto: la griglia diventa illeggibile nelle settimane piene. */
+  overflow: hidden;
 }
 
 .fc-event:hover {
