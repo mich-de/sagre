@@ -118,7 +118,7 @@ export function EventModal({ event, onClose }: EventModalProps) {
                   {start.getDate()}
                   {multiDay && (
                     <>
-                      <span className="text-3xl font-normal text-vermiglio sm:text-4xl">-</span>
+                      <span className="font-body text-3xl font-bold text-vermiglio sm:text-4xl">–</span>
                       {end.getDate()}
                     </>
                   )}

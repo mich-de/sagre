@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { RefreshCw, AlertTriangle, MapPin, ArrowRight } from 'lucide-react'
 import { useCalendarEvents } from '../hooks/useCalendarEvents'
 import { CalendarView } from '../components/CalendarView'
 import { EventModal } from '../components/EventModal'
+import { DateRange } from '../components/DateRange'
 import { categorize } from '../lib/categorize'
-import { eventStart, eventEndExclusive, isOngoing, shortRange, formatDuration, isMultiDay } from '../lib/dates'
+import { eventStart, eventEndExclusive, isOngoing, formatDuration, isMultiDay } from '../lib/dates'
 import type { CalendarEvent } from '../lib/googleCalendar'
 
 const CATEGORIES = [
@@ -67,7 +68,7 @@ export function Home() {
         {/* Dati di tiratura, come il colophon di un manifesto. */}
         <dl className="mt-6 flex flex-wrap gap-x-8 gap-y-3 border-t border-ink/25 pt-4">
           <Stat label="Appuntamenti" value={loading ? '—' : String(events.length)} />
-          <Stat label="Prossimo" value={nextEvent ? shortRange(nextEvent) : '—'} />
+          <Stat label="Prossimo" value={nextEvent ? <DateRange event={nextEvent} /> : '—'} />
           <Stat label="Fonte" value="Google Calendar" />
         </dl>
       </section>
@@ -105,9 +106,10 @@ export function Home() {
               </span>
             </span>
             <span className="flex shrink-0 items-center gap-3">
-              <span className="font-display text-lg font-black whitespace-nowrap text-vermiglio">
-                {shortRange(nextEvent)}
-              </span>
+              <DateRange
+                event={nextEvent}
+                className="font-display text-lg font-black whitespace-nowrap text-vermiglio"
+              />
               <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
             </span>
           </span>
@@ -169,7 +171,7 @@ export function Home() {
   )
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div>
       <dt className="eyebrow">{label}</dt>
