@@ -70,3 +70,38 @@ h1, h2, h3, h4 {
   cursor: pointer;
   border: none !important;
 }
+
+/* Toolbar buttons: the selected view must read as selected, so give the
+   active state the brand accent instead of FullCalendar's darker default. */
+.fc .fc-button-primary {
+  background-color: var(--color-surface2-dark);
+  border-color: var(--color-outline-dark);
+  color: var(--color-on-surface-dark);
+  font-weight: 500;
+}
+
+.fc .fc-button-primary:hover:not(:disabled) {
+  background-color: var(--color-outline-dark);
+  border-color: var(--color-outline-dark);
+}
+
+.fc .fc-button-primary:disabled {
+  background-color: var(--color-surface-dark);
+  border-color: var(--color-outline-dark);
+  color: var(--color-on-surface-variant-dark);
+  opacity: 1;
+}
+
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+  background-color: var(--color-orange-hot);
+  border-color: var(--color-orange-hot);
+  color: #fff;
+  font-weight: 600;
+}
+
+.fc .fc-button-primary:focus-visible {
+  outline: 2px solid var(--color-orange-hot);
+  outline-offset: 2px;
+  box-shadow: none;
+}
