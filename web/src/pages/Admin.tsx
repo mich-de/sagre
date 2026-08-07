@@ -16,12 +16,14 @@ import {
   ChevronRight,
   Image as ImageIcon,
   Save,
+  Wrench,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useCalendarEvents } from '../hooks/useCalendarEvents'
 import { useEventExtras } from '../hooks/useEventExtras'
 import {
   getEventMedia,
+  getPoster,
   saveExtras,
   addPhoto,
   deletePhoto,
@@ -29,6 +31,7 @@ import {
   deleteAllPhotos,
   makeThumb,
   migrateLegacyCover,
+  repairAllPosters,
   resizeImageToDataUrl,
   EMPTY_EXTRAS,
   MAX_PHOTOS,
@@ -38,6 +41,7 @@ import {
   type EventExtras,
   type EventStatus,
   type ExtrasPatch,
+  type RepairReport,
 } from '../lib/posters'
 import { normalizeUrl, isValidUrl, suggestLinkLabel, type EventLink } from '../lib/links'
 import { CATEGORIES, categorize } from '../lib/categorize'
@@ -156,9 +160,13 @@ const FILTERS: Array<{ key: AdminFilter; label: string }> = [
   { key: 'passati', label: 'Passati' },
 ]
 
+/** La locandina c'è anche quando la miniatura non è ancora stata generata:
+ *  le schede del vecchio schema tengono l'immagine nel documento padre. */
+const hasPoster = (ex: EventExtras) => Boolean(ex.thumb) || ex.hasLegacyCover
+
 function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: () => void }) {
   const { events, loading, error } = useCalendarEvents()
-  const { extras, loading: extrasLoading } = useEventExtras()
+  const { extras, loading: extrasLoading, reload: reloadExtras } = useEventExtras()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<AdminFilter>('tutti')
@@ -180,14 +188,16 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
     let withPoster = 0
     let featured = 0
     let cancelled = 0
+    let legacy = 0
     for (const event of events) {
       const ex = local[event.id]
       if (!ex) continue
-      if (ex.thumb) withPoster++
+      if (hasPoster(ex)) withPoster++
+      if (ex.hasLegacyCover) legacy++
       if (ex.featured) featured++
       if (ex.status === 'annullato') cancelled++
     }
-    return { total: events.length, withPoster, featured, cancelled }
+    return { total: events.length, withPoster, featured, cancelled, legacy }
   }, [events, local])
 
   const filtered = useMemo(() => {
@@ -195,8 +205,8 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
     const sorted = [...events].sort((a, b) => eventStart(b).getTime() - eventStart(a).getTime())
     return sorted.filter((e) => {
       const ex = extrasOf(e.id)
-      if (filter === 'senza' && ex.thumb) return false
-      if (filter === 'con' && !ex.thumb) return false
+      if (filter === 'senza' && hasPoster(ex)) return false
+      if (filter === 'con' && !hasPoster(ex)) return false
       if (filter === 'evidenza' && !ex.featured) return false
       if (filter === 'annullati' && ex.status !== 'annullato') return false
       if (filter === 'passati' && !isOver(e)) return false
@@ -238,6 +248,8 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
         <Metric label="In evidenza" value={extrasLoading ? '—' : stats.featured} />
         <Metric label="Annullati" value={extrasLoading ? '—' : stats.cancelled} alert={stats.cancelled > 0} />
       </dl>
+
+      {stats.legacy > 0 && <RepairBanner count={stats.legacy} userEmail={userEmail} onDone={reloadExtras} />}
 
       {error && (
         <div className="mb-5 flex items-start gap-2.5 border-2 border-vermiglio bg-vermiglio/10 p-4 text-sm text-ink">
@@ -364,6 +376,68 @@ function Metric({
   )
 }
 
+/* ---------------------------------------------------------- riparazione -- */
+
+/** Le locandine caricate col vecchio schema non hanno la miniatura, e senza
+ *  quella spariscono da calendario ed elenco. Qui si rimettono tutte in riga
+ *  in un colpo solo, invece di aprire un evento alla volta. */
+function RepairBanner({
+  count,
+  userEmail,
+  onDone,
+}: {
+  count: number
+  userEmail: string
+  onDone: () => void
+}) {
+  const [busy, setBusy] = useState(false)
+  const [progress, setProgress] = useState({ done: 0, total: 0 })
+  const [report, setReport] = useState<RepairReport | null>(null)
+
+  async function handleRepair() {
+    setBusy(true)
+    setReport(null)
+    try {
+      const result = await repairAllPosters(userEmail, (done, total) => setProgress({ done, total }))
+      setReport(result)
+      onDone()
+    } catch {
+      setReport({ migrate: 0, thumbs: 0, errori: -1 })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mb-5 flex flex-wrap items-center gap-3 border-2 border-ink bg-senape/12 p-4">
+      <Wrench size={18} className="shrink-0 text-ink" />
+      <p className="min-w-48 flex-1 text-sm text-ink">
+        <strong className="font-semibold">
+          {count} {count === 1 ? 'locandina' : 'locandine'} in archivio vecchio.
+        </strong>{' '}
+        <span className="text-ink-soft">
+          Ci sono, ma senza miniatura non compaiono nel calendario né nell'elenco.
+        </span>
+        {report && (
+          <span className="mt-1 block text-xs text-ink-soft">
+            {report.errori === -1
+              ? 'Riparazione non riuscita. Riprova.'
+              : `Sistemate ${report.migrate + report.thumbs}${report.errori > 0 ? `, ${report.errori} non riuscite` : ''}.`}
+          </span>
+        )}
+      </p>
+      <button
+        onClick={handleRepair}
+        disabled={busy}
+        className="stamp-btn flex items-center gap-2 bg-ink px-3 py-1.5 text-[0.65rem] font-bold tracking-[0.12em] uppercase text-paper-hi disabled:opacity-50"
+      >
+        <Wrench size={13} />
+        {busy ? `${progress.done}/${progress.total || count}…` : 'Sistema tutte'}
+      </button>
+    </div>
+  )
+}
+
 /* -------------------------------------------------------------- editor -- */
 
 const EMPTY_MEDIA: EventMedia = { ...EMPTY_EXTRAS, cover: null, photos: [] }
@@ -398,12 +472,12 @@ function EventEditor({
     setMessage(null)
     getEventMedia(event.id)
       .then(async (loaded) => {
-        /* Vecchio schema: copertina a piena risoluzione nel documento padre e
-           nessuna foto. Si sposta nella sottocollezione alla prima apertura. */
-        if (loaded.cover && loaded.photos.length === 0) {
-          return migrateLegacyCover(event.id, loaded, loaded.cover, userEmail)
-        }
-        return loaded
+        /* Vecchio schema: copertina a piena risoluzione nel documento padre.
+           Si sposta nella sottocollezione alla prima apertura — anche quando
+           l'evento ha già delle foto, altrimenti quella resta orfana. */
+        if (!loaded.hasLegacyCover) return loaded
+        const poster = await getPoster(event.id)
+        return poster?.dataUrl ? migrateLegacyCover(event.id, loaded, poster.dataUrl, userEmail) : loaded
       })
       .then((loaded) => {
         /* Anche il solo caricamento aggiorna il cruscotto: dopo la migrazione

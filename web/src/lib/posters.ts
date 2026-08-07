@@ -58,6 +58,8 @@ export interface EventExtras {
   category: string | null
   featured: boolean
   status: EventStatus
+  /** Copertina ancora nel vecchio schema, in attesa di migrazione. */
+  hasLegacyCover: boolean
 }
 
 /** Quel che serve alla scheda del singolo evento: pesante. */
@@ -80,6 +82,7 @@ export const EMPTY_EXTRAS: EventExtras = {
   category: null,
   featured: false,
   status: 'confermato',
+  hasLegacyCover: false,
 }
 
 const posterRef = (eventId: string) => doc(db, 'posters', eventId)
@@ -94,6 +97,7 @@ function toExtras(eventId: string, data: PosterDoc | null): EventExtras {
     category: data?.category ?? null,
     featured: data?.featured ?? false,
     status: data?.status ?? 'confermato',
+    hasLegacyCover: Boolean(data?.dataUrl),
   }
 }
 
@@ -226,6 +230,52 @@ export async function migrateLegacyCover(
   const photos = await reorderPhotos(eventId, [moved, ...media.photos], updatedBy)
   await saveExtras(eventId, { dataUrl: null, thumb: await makeThumb(legacy) }, updatedBy)
   return { ...media, cover: legacy, photos }
+}
+
+export interface RepairReport {
+  migrate: number
+  thumbs: number
+  errori: number
+}
+
+/** Passa in rassegna tutte le locandine e rimette in riga quelle rimaste
+ *  indietro: copertine del vecchio schema da spostare nella sottocollezione e
+ *  foto senza miniatura. Senza, l'evento resta invisibile agli elenchi — che
+ *  guardano `thumb` — finché qualcuno non lo apre a mano. */
+export async function repairAllPosters(
+  updatedBy: string,
+  onProgress?: (done: number, total: number) => void
+): Promise<RepairReport> {
+  const snap = await getDocs(collection(db, 'posters'))
+  const targets = snap.docs.filter((d) => {
+    const data = d.data() as PosterDoc
+    return Boolean(data.dataUrl) || !data.thumb
+  })
+
+  const report: RepairReport = { migrate: 0, thumbs: 0, errori: 0 }
+  let done = 0
+
+  for (const d of targets) {
+    const legacy = (d.data() as PosterDoc).dataUrl
+    try {
+      if (legacy) {
+        const media = await getEventMedia(d.id)
+        await migrateLegacyCover(d.id, media, legacy, updatedBy)
+        report.migrate += 1
+      } else {
+        const photos = await listPhotos(d.id)
+        if (photos.length > 0) {
+          await saveExtras(d.id, { thumb: await makeThumb(photos[0].dataUrl) }, updatedBy)
+          report.thumbs += 1
+        }
+      }
+    } catch {
+      report.errori += 1
+    }
+    onProgress?.((done += 1), targets.length)
+  }
+
+  return report
 }
 
 /* --------------------------------------------------------------- immagini -- */
