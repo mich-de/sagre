@@ -1,0 +1,28 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /posters/{eventId} {
+      allow read: if true;
+
+      allow write: if request.auth != null
+        && request.auth.token.email == 'mic.deangelis@gmail.com'
+        && request.resource.data.keys().hasOnly(['eventId', 'dataUrl', 'updatedAt', 'updatedBy'])
+        && request.resource.data.eventId is string
+        && request.resource.data.eventId == eventId
+        && request.resource.data.dataUrl is string
+        && request.resource.data.dataUrl.size() < 950000
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.updatedBy is string
+        && request.resource.data.updatedBy == request.auth.token.email;
+
+      allow delete: if request.auth != null
+        && request.auth.token.email == 'mic.deangelis@gmail.com';
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
