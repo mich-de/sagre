@@ -7,6 +7,7 @@ import type { EventClickArg, EventContentArg } from '@fullcalendar/core'
 import itLocale from '@fullcalendar/core/locales/it'
 import type { CalendarEvent } from '../lib/googleCalendar'
 import { categorize } from '../lib/categorize'
+import { NEXT_DAY_THRESHOLD } from '../lib/dates'
 
 interface CalendarViewProps {
   events: CalendarEvent[]
@@ -92,6 +93,9 @@ export function CalendarView({ events, onSelectEvent }: CalendarViewProps) {
           /* Tutti a blocco pieno: gli eventi con orario, lasciati al "puntino"
              predefinito, restavano testo nudo che tracimava nelle celle vicine. */
           eventDisplay="block"
+          /* Una festa che finisce all'una di notte resta la festa della sera
+             prima: stessa soglia usata da `eventEndInclusive`. */
+          nextDayThreshold={NEXT_DAY_THRESHOLD}
           eventClick={handleEventClick}
           eventContent={renderEventContent}
           dayMaxEvents={isMobile ? 3 : 4}

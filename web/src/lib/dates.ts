@@ -33,21 +33,22 @@ export function eventEndExclusive(event: CalendarEvent): Date {
   return parseEventDate(event.end)
 }
 
-/** Fine inclusiva: l'ultimo giorno da mostrare all'utente.
- *
- *  Con orario: una festa che va dalle 20:00 a mezzanotte in punto appartiene
- *  ancora al giorno in cui è cominciata. È la stessa soglia (`nextDayThreshold`)
- *  che usa FullCalendar per decidere se disegnare il blocco anche il giorno
- *  dopo — senza allinearsi, la griglia mostra un giorno e il testo ne annuncia
- *  due. Chi tira davvero fino all'una di notte resta a due giorni. */
+/** Ora prima della quale la coda di una festa appartiene ancora alla sera
+ *  precedente. I fuochi di Ferragosto finiscono all'una di notte del 16 ma
+ *  restano la festa del 15: una sagra al giorno, non due mezze giornate.
+ *  Lo stesso valore va passato a FullCalendar come `nextDayThreshold`,
+ *  altrimenti la griglia e il testo raccontano due cose diverse. */
+export const NEXT_DAY_HOUR = 6
+export const NEXT_DAY_THRESHOLD = '06:00:00'
+
+/** Fine inclusiva: l'ultimo giorno da mostrare all'utente. */
 export function eventEndInclusive(event: CalendarEvent): Date {
   const end = parseEventDate(event.end)
   const start = eventStart(event)
 
   if (!event.allDay) {
-    const atMidnight = end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0
-    if (!atMidnight) return end
-    const previous = new Date(end.getTime() - 1)
+    if (end.getHours() >= NEXT_DAY_HOUR) return end
+    const previous = new Date(startOfDay(end).getTime() - 1)
     return previous < start ? start : previous
   }
 
@@ -129,13 +130,13 @@ export function formatDateRange(event: CalendarEvent): string {
     return `Da ${fromStr} a ${toStr}`
   }
 
-  /* Gli orari si leggono sempre sulla fine reale: l'inclusiva, per un evento
-     che chiude a mezzanotte, è le 23:59:59.999 del giorno prima. */
+  /* Il giorno si legge sulla fine inclusiva, l'ora sulla fine reale:
+     l'inclusiva di una festa che chiude a mezzanotte è le 23:59:59.999. */
   const until = eventEndExclusive(event)
   if (sameDay) {
     return `${cap(fmt(from, { weekday: 'long', day: 'numeric', month: 'long' }))} · ${time(from)}–${time(until)}`
   }
-  return `${cap(fmt(from, { weekday: 'short', day: 'numeric', month: 'short' }))} ${time(from)} → ${fmt(until, {
+  return `${cap(fmt(from, { weekday: 'short', day: 'numeric', month: 'short' }))} ${time(from)} → ${fmt(to, {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
