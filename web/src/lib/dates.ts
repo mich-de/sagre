@@ -56,8 +56,21 @@ export function eventEndInclusive(event: CalendarEvent): Date {
   return inclusive < start ? start : inclusive
 }
 
-function startOfDay(d: Date): Date {
+export function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+}
+
+export function addDays(d: Date, days: number): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days)
+}
+
+/** L'evento è in cartellone in quel giorno? Vale anche per le sagre lunghe,
+ *  che occupano tutti i giorni tra inizio e fine inclusiva. */
+export function occursOn(event: CalendarEvent, day: Date): boolean {
+  const d = startOfDay(day).getTime()
+  return (
+    startOfDay(eventStart(event)).getTime() <= d && startOfDay(eventEndInclusive(event)).getTime() >= d
+  )
 }
 
 export function isSameDay(a: Date, b: Date): boolean {
@@ -141,6 +154,20 @@ export function formatDateRange(event: CalendarEvent): string {
     day: 'numeric',
     month: 'short',
   })} ${time(until)}`
+}
+
+/** Solo l'orario d'inizio, per le righe d'elenco. */
+export function startTime(event: CalendarEvent): string | null {
+  return event.allDay ? null : time(eventStart(event))
+}
+
+/** "Agosto 2026" — intestazione di sezione nell'elenco. */
+export function monthLabel(d: Date): string {
+  return cap(fmt(d, { month: 'long', year: 'numeric' }))
+}
+
+export function monthKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
 /** "3 giorni" / "1 giorno" — usato come pastiglia sulle sagre lunghe. */

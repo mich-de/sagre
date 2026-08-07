@@ -20,15 +20,32 @@ service cloud.firestore {
             && request.resource.data[field].size() < 950000);
     }
 
-    // Documento dell'evento: locandina di copertina + collegamenti esterni.
+    function optionalString(field, maxLen) {
+      return !(field in request.resource.data)
+        || (request.resource.data[field] is string
+            && request.resource.data[field].size() <= maxLen);
+    }
+
+    // Scheda dell'evento: miniatura, collegamenti, nota, categoria e stato.
+    // La copertina a piena risoluzione sta nella sottocollezione `photos`;
+    // `dataUrl` è il vecchio schema, ancora ammesso finché non è migrato.
     match /posters/{eventId} {
       allow read: if true;
 
       allow write: if isAdmin()
-        && request.resource.data.keys().hasOnly(['eventId', 'dataUrl', 'links', 'updatedAt', 'updatedBy'])
+        && request.resource.data.keys().hasOnly(
+             ['eventId', 'thumb', 'dataUrl', 'links', 'note', 'category',
+              'featured', 'status', 'updatedAt', 'updatedBy'])
         && request.resource.data.eventId is string
         && request.resource.data.eventId == eventId
         && imageOk('dataUrl')
+        && imageOk('thumb')
+        && optionalString('note', 2000)
+        && optionalString('category', 40)
+        && (!('featured' in request.resource.data)
+            || request.resource.data.featured is bool)
+        && (!('status' in request.resource.data)
+            || request.resource.data.status in ['confermato', 'annullato', 'rinviato'])
         && (!('links' in request.resource.data)
             || (request.resource.data.links is list
                 && request.resource.data.links.size() <= 8))

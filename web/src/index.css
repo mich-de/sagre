@@ -342,6 +342,50 @@ h4 {
   border-radius: 0 !important;
 }
 
+/* Feste annullate: barrate e slavate, ma ancora leggibili — chi arriva in
+   piazza deve capire che l'appuntamento c'era e non c'è più. */
+.fc-event.is-cancelled {
+  opacity: 0.55;
+  text-decoration: line-through;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(23, 19, 16, 0.35) 0 3px,
+    transparent 3px 7px
+  );
+}
+
+/* Celle più alte: con quattro eventi al giorno la griglia stava stretta. */
+.fc .fc-daygrid-day-frame {
+  min-height: 6.6rem;
+}
+
+@media (max-width: 640px) {
+  .fc .fc-daygrid-day-frame {
+    min-height: 4.4rem;
+  }
+}
+
+/* Contatore delle feste del giorno, in alto a sinistra nella cella. */
+.fc-day-count {
+  font-family: var(--font-body);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--color-ink-faint);
+  border: 1px solid rgba(23, 19, 16, 0.25);
+  padding: 0 0.25rem;
+}
+
+.fc .fc-day-today .fc-day-count {
+  color: var(--color-vermiglio);
+  border-color: var(--color-vermiglio);
+}
+
+/* Oggi: oltre al numero cerchiato, la cella prende un filetto rosso. */
+.fc .fc-day-today {
+  box-shadow: inset 0 0 0 2px var(--color-vermiglio);
+}
+
 /* Riquadro "+n altri": un foglietto di carta appuntato. */
 .fc .fc-popover {
   border: 2px solid var(--color-ink);
@@ -365,57 +409,6 @@ h4 {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-vermiglio);
-}
-
-/* Vista elenco */
-.fc .fc-list {
-  border-color: var(--color-ink);
-  border-width: 0;
-}
-
-.fc .fc-list-day-cushion {
-  background: var(--color-paper-2);
-  border-top: 2px solid var(--color-ink);
-  border-bottom: 1px solid var(--color-ink);
-}
-
-.fc .fc-list-day-text,
-.fc .fc-list-day-side-text {
-  font-family: var(--font-display);
-  font-size: 0.95rem;
-  font-weight: 800;
-  text-transform: capitalize;
-  color: var(--color-ink);
-}
-
-.fc .fc-list-event {
-  cursor: pointer;
-}
-
-.fc .fc-list-event-title {
-  font-weight: 600;
-}
-
-.fc .fc-list-event-time {
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-ink-soft);
-}
-
-.fc .fc-list-event-dot {
-  border-width: 6px;
-  border-radius: 0; /* quadratino tipografico, non pallino */
-}
-
-.fc-theme-standard .fc-list-table td,
-.fc-theme-standard .fc-list-day > * {
-  border-color: rgba(23, 19, 16, 0.2);
-}
-
-.fc .fc-list-empty {
-  background: transparent;
-  font-size: 0.875rem;
-  color: var(--color-ink-faint);
 }
 
 /* Pulsanti della testata: timbri d'inchiostro. */

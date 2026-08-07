@@ -15,10 +15,12 @@ import {
   Music2,
   Newspaper,
   Globe,
+  Ban,
+  Megaphone,
 } from 'lucide-react'
 import type { CalendarEvent } from '../lib/googleCalendar'
 import { googleCalendarAddUrl } from '../lib/googleCalendar'
-import { getEventMedia, type EventMedia } from '../lib/posters'
+import { getEventMedia, EMPTY_EXTRAS, type EventMedia } from '../lib/posters'
 import { linkKind, type EventLink, type LinkKind } from '../lib/links'
 import { categorize } from '../lib/categorize'
 import { formatDateRange, formatDuration, eventStart, eventEndInclusive, isMultiDay, isOngoing } from '../lib/dates'
@@ -43,35 +45,40 @@ export function EventModal({ event, onClose }: EventModalProps) {
   const [mediaLoading, setMediaLoading] = useState(true)
   const [zoomed, setZoomed] = useState(false)
   const [index, setIndex] = useState(0)
-  const category = categorize(event.title, event.description)
+  const category = categorize(event.title, event.description, media?.category)
   const start = eventStart(event)
   const end = eventEndInclusive(event)
   const multiDay = isMultiDay(event)
-  const ongoing = isOngoing(event)
+  const status = media?.status ?? 'confermato'
+  const cancelled = status === 'annullato'
+  const ongoing = isOngoing(event) && !cancelled
 
+  /* La copertina è la prima foto della galleria; `cover` da solo resta il caso
+     del vecchio schema, prima che l'organizzatore riapra l'evento. */
   const images = useMemo(() => {
     if (!media) return [] as string[]
-    return [media.cover, ...media.photos.map((p) => p.dataUrl)].filter((x): x is string => Boolean(x))
+    if (media.photos.length > 0) return media.photos.map((p) => p.dataUrl)
+    return media.cover ? [media.cover] : []
   }, [media])
 
   const links: EventLink[] = media?.links ?? []
   const current = images[index] ?? null
 
   useEffect(() => {
-    let cancelled = false
+    let aborted = false
     setMediaLoading(true)
     getEventMedia(event.id)
       .then((m) => {
-        if (!cancelled) setMedia(m)
+        if (!aborted) setMedia(m)
       })
       .catch(() => {
-        if (!cancelled) setMedia({ cover: null, photos: [], links: [] })
+        if (!aborted) setMedia({ ...EMPTY_EXTRAS, eventId: event.id, cover: null, photos: [] })
       })
       .finally(() => {
-        if (!cancelled) setMediaLoading(false)
+        if (!aborted) setMediaLoading(false)
       })
     return () => {
-      cancelled = true
+      aborted = true
     }
   }, [event.id])
 
@@ -215,13 +222,27 @@ export function EventModal({ event, onClose }: EventModalProps) {
           {/* --------------------------------------------------- biglietto -- */}
           <div className="space-y-4 p-5 sm:p-6">
             <div>
-              <h2 className="font-display text-2xl leading-tight font-black text-ink sm:text-3xl">
+              <h2
+                className={`font-display text-2xl leading-tight font-black text-ink sm:text-3xl ${
+                  cancelled ? 'line-through decoration-vermiglio decoration-2' : ''
+                }`}
+              >
                 {event.title}
               </h2>
               <p className="mt-2 text-sm font-medium text-ink-soft">{formatDateRange(event)}</p>
 
-              {(multiDay || ongoing) && (
+              {(multiDay || ongoing || status !== 'confermato') && (
                 <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {status !== 'confermato' && (
+                    <span
+                      className={`flex items-center gap-1.5 border-2 border-ink px-2 py-0.5 text-[0.6rem] font-bold tracking-[0.14em] uppercase ${
+                        cancelled ? 'bg-ink text-paper-hi' : 'bg-paper-3 text-ink'
+                      }`}
+                    >
+                      <Ban size={11} />
+                      {cancelled ? 'Annullato' : 'Rinviato'}
+                    </span>
+                  )}
                   {ongoing && (
                     <span className="flex items-center gap-1.5 border-2 border-ink bg-vermiglio px-2 py-0.5 text-[0.6rem] font-bold tracking-[0.14em] uppercase text-paper-hi">
                       <span className="h-1.5 w-1.5 rounded-full bg-paper-hi" aria-hidden />
@@ -260,6 +281,18 @@ export function EventModal({ event, onClose }: EventModalProps) {
               <p className="text-sm leading-relaxed whitespace-pre-line text-ink-soft">
                 {event.description}
               </p>
+            )}
+
+            {/* Nota dell'organizzatore: quel che Google Calendar non sa dire —
+                menù, prezzi, dove si parcheggia, che si fa se piove. */}
+            {media?.note && (
+              <div className="border-l-4 border-vermiglio bg-paper-2 py-2.5 pr-3 pl-3">
+                <p className="eyebrow flex items-center gap-1.5">
+                  <Megaphone size={11} />
+                  Dall'organizzatore
+                </p>
+                <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-line text-ink">{media.note}</p>
+              </div>
             )}
 
             {links.length > 0 && (
