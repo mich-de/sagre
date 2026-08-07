@@ -3,22 +3,52 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email == 'mic.deangelis@gmail.com';
+    }
+
+    function stamped() {
+      return request.resource.data.updatedAt == request.time
+        && request.resource.data.updatedBy is string
+        && request.resource.data.updatedBy == request.auth.token.email;
+    }
+
+    function imageOk(field) {
+      return !(field in request.resource.data)
+        || (request.resource.data[field] is string
+            && request.resource.data[field].size() < 950000);
+    }
+
+    // Documento dell'evento: locandina di copertina + collegamenti esterni.
     match /posters/{eventId} {
       allow read: if true;
 
-      allow write: if request.auth != null
-        && request.auth.token.email == 'mic.deangelis@gmail.com'
-        && request.resource.data.keys().hasOnly(['eventId', 'dataUrl', 'updatedAt', 'updatedBy'])
+      allow write: if isAdmin()
+        && request.resource.data.keys().hasOnly(['eventId', 'dataUrl', 'links', 'updatedAt', 'updatedBy'])
         && request.resource.data.eventId is string
         && request.resource.data.eventId == eventId
-        && request.resource.data.dataUrl is string
-        && request.resource.data.dataUrl.size() < 950000
-        && request.resource.data.updatedAt == request.time
-        && request.resource.data.updatedBy is string
-        && request.resource.data.updatedBy == request.auth.token.email;
+        && imageOk('dataUrl')
+        && (!('links' in request.resource.data)
+            || (request.resource.data.links is list
+                && request.resource.data.links.size() <= 8))
+        && stamped();
 
-      allow delete: if request.auth != null
-        && request.auth.token.email == 'mic.deangelis@gmail.com';
+      allow delete: if isAdmin();
+
+      // Le altre foto: una per documento, per non sfondare il tetto di 1 MiB.
+      match /photos/{photoId} {
+        allow read: if true;
+
+        allow write: if isAdmin()
+          && request.resource.data.keys().hasOnly(['dataUrl', 'order', 'updatedAt', 'updatedBy'])
+          && request.resource.data.dataUrl is string
+          && request.resource.data.dataUrl.size() < 950000
+          && request.resource.data.order is int
+          && stamped();
+
+        allow delete: if isAdmin();
+      }
     }
 
     match /{document=**} {
