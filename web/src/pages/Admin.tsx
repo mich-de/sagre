@@ -50,6 +50,7 @@ function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => 
         <input
           type="email"
           required
+          autoComplete="username"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -58,6 +59,7 @@ function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => 
         <input
           type="password"
           required
+          autoComplete="current-password"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
