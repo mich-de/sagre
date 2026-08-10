@@ -60,7 +60,7 @@ export function Admin() {
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+    <main className="safe-b safe-x mx-auto max-w-5xl px-4 py-8 sm:px-6">
       {user ? <PosterManager userEmail={user.email ?? ''} onLogout={logout} /> : <LoginForm onLogin={login} />}
     </main>
   )
@@ -104,7 +104,9 @@ function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => 
             autoComplete="username"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full border-2 border-ink bg-paper px-3 py-2 text-sm text-ink outline-none focus:bg-paper-hi focus:ring-2 focus:ring-vermiglio focus:ring-offset-2 focus:ring-offset-paper-hi"
+            /* 16px sul telefono: sotto quella misura iOS ingrandisce la pagina
+               al primo tocco sul campo e non la rimette più a posto. */
+            className="w-full border-2 border-ink bg-paper px-3 py-2.5 text-base text-ink outline-none focus:bg-paper-hi focus:ring-2 focus:ring-vermiglio focus:ring-offset-2 focus:ring-offset-paper-hi sm:py-2 sm:text-sm"
           />
         </Field>
         <Field label="Password">
@@ -114,7 +116,7 @@ function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => 
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full border-2 border-ink bg-paper px-3 py-2 text-sm text-ink outline-none focus:bg-paper-hi focus:ring-2 focus:ring-vermiglio focus:ring-offset-2 focus:ring-offset-paper-hi"
+            className="w-full border-2 border-ink bg-paper px-3 py-2.5 text-base text-ink outline-none focus:bg-paper-hi focus:ring-2 focus:ring-vermiglio focus:ring-offset-2 focus:ring-offset-paper-hi sm:py-2 sm:text-sm"
           />
         </Field>
 
@@ -128,7 +130,7 @@ function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => 
         <button
           type="submit"
           disabled={submitting}
-          className="stamp-btn flex w-full items-center justify-center gap-2 bg-vermiglio px-4 py-2.5 text-[0.7rem] font-bold tracking-[0.14em] uppercase text-paper-hi"
+          className="stamp-btn tap flex w-full items-center justify-center gap-2 bg-vermiglio px-4 py-3 text-[0.7rem] font-bold tracking-[0.14em] uppercase text-paper-hi sm:py-2.5"
         >
           <LogIn size={15} />
           {submitting ? 'Accesso…' : 'Entra'}
@@ -228,7 +230,7 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
         </div>
         <button
           onClick={onLogout}
-          className="stamp-btn flex items-center gap-2 bg-paper-hi px-3 py-1.5 text-[0.65rem] font-bold tracking-[0.12em] uppercase text-ink"
+          className="stamp-btn tap tap-grow flex items-center gap-2 bg-paper-hi px-3 py-2 text-[0.65rem] font-bold tracking-[0.12em] uppercase text-ink sm:py-1.5"
         >
           <LogOut size={13} />
           Esci
@@ -267,7 +269,7 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Cerca evento…"
-              className="w-full border-2 border-ink bg-paper-hi py-1.5 pr-2 pl-8 text-xs text-ink outline-none placeholder:text-ink-faint focus:ring-2 focus:ring-vermiglio"
+              className="w-full border-2 border-ink bg-paper-hi py-2 pr-2 pl-8 text-base text-ink outline-none placeholder:text-ink-faint focus:ring-2 focus:ring-vermiglio sm:py-1.5 sm:text-xs"
             />
           </div>
 
@@ -276,7 +278,7 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
               <button
                 key={f.key}
                 onClick={() => setFilter(f.key)}
-                className={`border px-1.5 py-0.5 text-[0.55rem] font-bold tracking-[0.1em] uppercase transition-colors ${
+                className={`tap-grow flex items-center border px-2.5 py-1.5 text-[0.6rem] font-bold tracking-[0.1em] uppercase transition-colors sm:px-1.5 sm:py-0.5 sm:text-[0.55rem] ${
                   filter === f.key
                     ? 'border-ink bg-ink text-paper-hi'
                     : 'border-ink/25 text-ink-soft hover:border-ink hover:text-ink'
@@ -287,7 +289,7 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
             ))}
           </div>
 
-          <div className="ink-box-sm max-h-[60vh] overflow-y-auto p-1.5">
+          <div className="ink-box-sm max-h-[50dvh] overflow-y-auto overscroll-contain p-1.5 sm:max-h-[60vh]">
             {loading && <p className="p-2 text-xs text-ink-faint">Caricamento eventi…</p>}
             {!loading && filtered.length === 0 && (
               <p className="p-2 text-xs text-ink-faint">Nessun evento con questi filtri.</p>
@@ -429,7 +431,7 @@ function RepairBanner({
       <button
         onClick={handleRepair}
         disabled={busy}
-        className="stamp-btn flex items-center gap-2 bg-ink px-3 py-1.5 text-[0.65rem] font-bold tracking-[0.12em] uppercase text-paper-hi disabled:opacity-50"
+        className="stamp-btn tap tap-grow flex w-full items-center justify-center gap-2 bg-ink px-3 py-2.5 text-[0.65rem] font-bold tracking-[0.12em] uppercase text-paper-hi disabled:opacity-50 sm:w-auto sm:py-1.5"
       >
         <Wrench size={13} />
         {busy ? `${progress.done}/${progress.total || count}…` : 'Sistema tutte'}
@@ -642,7 +644,7 @@ function EventEditor({
 
       {/* --------------------------------------------------- galleria -- */}
       {media.photos.length > 0 && (
-        <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-6">
           {media.photos.map((photo, i) => (
             <div key={photo.id} className="group relative aspect-square overflow-hidden border-2 border-ink">
               <img src={photo.dataUrl} alt="" className="h-full w-full object-cover" />
@@ -651,7 +653,10 @@ function EventEditor({
                   1ª
                 </span>
               )}
-              <div className="absolute inset-0 flex items-center justify-center gap-0.5 bg-ink/70 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+              {/* Col dito non esiste il passaggio del mouse: sul telefono i
+                  comandi stanno sempre in vista, in una fascia in basso che
+                  non copre la foto. Sul desktop restano l'antico velo. */}
+              <div className="absolute inset-x-0 bottom-0 flex items-stretch justify-center gap-1 bg-ink/75 p-1 transition-opacity sm:inset-0 sm:items-center sm:gap-0.5 sm:p-0 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
                 <PhotoBtn
                   onClick={() => handleMove(i, i - 1)}
                   disabled={busy || i === 0}
@@ -683,7 +688,7 @@ function EventEditor({
       )}
 
       <div className="mt-4 flex flex-wrap gap-3">
-        <label className="stamp-btn flex cursor-pointer items-center gap-2 bg-vermiglio px-4 py-2 text-[0.68rem] font-bold tracking-[0.12em] uppercase text-paper-hi">
+        <label className="stamp-btn tap flex flex-1 cursor-pointer items-center justify-center gap-2 bg-vermiglio px-4 py-3 text-[0.68rem] font-bold tracking-[0.12em] uppercase text-paper-hi sm:flex-none sm:justify-start sm:py-2">
           <Upload size={15} />
           {busy ? 'Attendere…' : media.photos.length > 0 ? 'Aggiungi foto' : 'Carica immagini'}
           <input
@@ -703,7 +708,7 @@ function EventEditor({
           <button
             onClick={handleDeleteAll}
             disabled={busy}
-            className="stamp-btn flex items-center gap-2 bg-paper-hi px-4 py-2 text-[0.68rem] font-bold tracking-[0.12em] uppercase text-ink"
+            className="stamp-btn tap flex flex-1 items-center justify-center gap-2 bg-paper-hi px-4 py-3 text-[0.68rem] font-bold tracking-[0.12em] uppercase text-ink sm:flex-none sm:justify-start sm:py-2"
           >
             <Trash2 size={15} />
             Svuota galleria
@@ -730,7 +735,7 @@ function EventEditor({
               const status = e.target.value as EventStatus
               void patch({ status }, { status }, 'Stato aggiornato.')
             }}
-            className="w-full border-2 border-ink bg-paper-hi px-2.5 py-1.5 text-xs font-semibold text-ink outline-none focus:ring-2 focus:ring-vermiglio"
+            className="w-full border-2 border-ink bg-paper-hi px-2.5 py-2.5 text-base font-semibold text-ink outline-none focus:ring-2 focus:ring-vermiglio sm:py-1.5 sm:text-xs"
           >
             <option value="confermato">Confermato</option>
             <option value="rinviato">Rinviato</option>
@@ -746,7 +751,7 @@ function EventEditor({
               const category = e.target.value || null
               void patch({ category }, { category }, 'Categoria aggiornata.')
             }}
-            className="w-full border-2 border-ink bg-paper-hi px-2.5 py-1.5 text-xs font-semibold text-ink outline-none focus:ring-2 focus:ring-vermiglio"
+            className="w-full border-2 border-ink bg-paper-hi px-2.5 py-2.5 text-base font-semibold text-ink outline-none focus:ring-2 focus:ring-vermiglio sm:py-1.5 sm:text-xs"
           >
             <option value="">Automatica</option>
             {CATEGORIES.map((c) => (
@@ -834,7 +839,10 @@ function PhotoBtn({
       disabled={disabled}
       title={label}
       aria-label={label}
-      className={`border border-paper-hi p-1 text-paper-hi transition-colors disabled:opacity-30 ${
+      /* Niente `.tap` qui: i quattro comandi sono affiancati e le aree
+         allargate si accavallerebbero rubandosi il tocco. Si allargano invece
+         davvero, dividendosi in parti uguali tutta la fascia. */
+      className={`flex flex-1 items-center justify-center border border-paper-hi py-2.5 text-paper-hi transition-colors disabled:opacity-30 sm:flex-none sm:p-1 ${
         danger ? 'hover:bg-vermiglio' : 'hover:bg-paper-hi hover:text-ink'
       }`}
     >
@@ -867,7 +875,7 @@ function NoteEditor({
           disabled={busy}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Menù, prezzi, parcheggio, in caso di pioggia…"
-          className="w-full resize-y border-2 border-ink bg-paper-hi px-2.5 py-2 text-xs leading-relaxed text-ink outline-none placeholder:text-ink-faint focus:ring-2 focus:ring-vermiglio"
+          className="w-full resize-y border-2 border-ink bg-paper-hi px-2.5 py-2 text-base leading-relaxed text-ink outline-none placeholder:text-ink-faint focus:ring-2 focus:ring-vermiglio sm:text-xs"
         />
       </Field>
       <div className="mt-1.5 flex items-center justify-between gap-3">
@@ -877,7 +885,7 @@ function NoteEditor({
         <button
           onClick={() => onSave(note)}
           disabled={busy || !dirty}
-          className="stamp-btn flex items-center gap-1.5 bg-ink px-3 py-1.5 text-[0.62rem] font-bold tracking-[0.12em] uppercase text-paper-hi"
+          className="stamp-btn tap tap-grow flex shrink-0 items-center gap-1.5 bg-ink px-3 py-2 text-[0.62rem] font-bold tracking-[0.12em] uppercase text-paper-hi sm:py-1.5"
         >
           <Save size={12} />
           {dirty ? 'Salva nota' : 'Salvata'}
@@ -945,7 +953,7 @@ function LinksEditor({
                 onClick={() => onSave(links.filter((l) => l.url !== link.url))}
                 disabled={busy}
                 aria-label={`Rimuovi ${link.label}`}
-                className="shrink-0 border border-ink p-0.5 text-ink transition-colors hover:bg-vermiglio hover:text-paper-hi"
+                className="tap shrink-0 border border-ink p-2 text-ink transition-colors hover:bg-vermiglio hover:text-paper-hi sm:p-0.5"
               >
                 <X size={12} />
               </button>
@@ -961,19 +969,19 @@ function LinksEditor({
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="instagram.com/proloco..."
-          className="min-w-0 flex-[2] border-2 border-ink bg-paper-hi px-2.5 py-1.5 text-xs text-ink outline-none placeholder:text-ink-faint focus:ring-2 focus:ring-vermiglio"
+          className="min-w-0 basis-full border-2 border-ink bg-paper-hi px-2.5 py-2.5 text-base text-ink outline-none placeholder:text-ink-faint focus:ring-2 focus:ring-vermiglio sm:basis-0 sm:flex-[2] sm:py-1.5 sm:text-xs"
         />
         <input
           type="text"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           placeholder="Etichetta"
-          className="min-w-0 flex-1 border-2 border-ink bg-paper-hi px-2.5 py-1.5 text-xs text-ink outline-none placeholder:text-ink-faint focus:ring-2 focus:ring-vermiglio"
+          className="min-w-0 flex-1 border-2 border-ink bg-paper-hi px-2.5 py-2.5 text-base text-ink outline-none placeholder:text-ink-faint focus:ring-2 focus:ring-vermiglio sm:py-1.5 sm:text-xs"
         />
         <button
           type="submit"
           disabled={busy}
-          className="stamp-btn flex items-center gap-1.5 bg-ink px-3 py-1.5 text-[0.65rem] font-bold tracking-[0.12em] uppercase text-paper-hi"
+          className="stamp-btn tap tap-grow flex shrink-0 items-center gap-1.5 bg-ink px-3 py-2 text-[0.65rem] font-bold tracking-[0.12em] uppercase text-paper-hi sm:py-1.5"
         >
           <Plus size={13} />
           Aggiungi

@@ -100,7 +100,7 @@ export function Home() {
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-16 sm:px-6">
+    <main className="safe-b safe-x mx-auto max-w-5xl px-4 pb-16 sm:px-6">
       {/* ------------------------------------------------------ manifesto -- */}
       <section className="relative animate-ink-rise pt-10 pb-8">
         <div className="halftone pointer-events-none absolute -top-2 right-0 h-40 w-40 sm:h-56 sm:w-56" aria-hidden />
@@ -126,7 +126,7 @@ export function Home() {
               reloadExtras()
             }}
             disabled={loading}
-            className="stamp-btn flex shrink-0 items-center gap-2 bg-paper-hi px-3.5 py-2 text-[0.65rem] font-bold tracking-[0.14em] uppercase text-ink"
+            className="stamp-btn tap tap-grow flex shrink-0 items-center gap-2 bg-paper-hi px-3.5 py-2 text-[0.65rem] font-bold tracking-[0.14em] uppercase text-ink"
           >
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
             Aggiorna

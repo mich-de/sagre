@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   X,
   MapPin,
@@ -40,11 +40,16 @@ const LINK_ICON: Record<LinkKind, typeof Globe> = {
   web: Globe,
 }
 
+const SWIPE_MIN = 55
+
 export function EventModal({ event, onClose }: EventModalProps) {
   const [media, setMedia] = useState<EventMedia | null>(null)
   const [mediaLoading, setMediaLoading] = useState(true)
   const [zoomed, setZoomed] = useState(false)
   const [index, setIndex] = useState(0)
+  const panelRef = useRef<HTMLDivElement | null>(null)
+  const touch = useRef<{ x: number; y: number; top: number } | null>(null)
+  const swiped = useRef(false)
   const category = categorize(event.title, event.description, media?.category)
   const start = eventStart(event)
   const end = eventEndInclusive(event)
@@ -82,6 +87,15 @@ export function EventModal({ event, onClose }: EventModalProps) {
     }
   }, [event.id])
 
+  /* Il fuoco entra nella scheda quando si apre e torna da dove veniva quando
+     si chiude: senza, chi naviga da tastiera resta a tabulare la pagina
+     coperta dietro il velo. */
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null
+    panelRef.current?.focus()
+    return () => previous?.focus?.()
+  }, [])
+
   // Esc chiude prima l'ingrandimento, poi la scheda. Le frecce scorrono le foto.
   useEffect(() => {
     function step(delta: number) {
@@ -92,6 +106,25 @@ export function EventModal({ event, onClose }: EventModalProps) {
       if (e.key === 'Escape') {
         if (zoomed) setZoomed(false)
         else onClose()
+        return
+      }
+      /* Tabulazione chiusa dentro la scheda, com'è d'obbligo per una
+         finestra modale. */
+      if (e.key === 'Tab' && panelRef.current) {
+        const focusable = panelRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not(:disabled), input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+        if (focusable.length === 0) return
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        const active = document.activeElement
+        if (e.shiftKey && (active === first || active === panelRef.current)) {
+          e.preventDefault()
+          last.focus()
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault()
+          first.focus()
+        }
         return
       }
       if (!zoomed) return
@@ -112,22 +145,68 @@ export function EventModal({ event, onClose }: EventModalProps) {
     setIndex((i) => (i + delta + images.length) % images.length)
   }
 
+  /* Un dito solo per tutto: di lato scorre le locandine, verso il basso —
+     e solo se la scheda è già in cima — la richiude come un cassetto. */
+  function onTouchStart(e: React.TouchEvent) {
+    const t = e.touches[0]
+    touch.current = { x: t.clientX, y: t.clientY, top: panelRef.current?.scrollTop ?? 0 }
+  }
+
+  function onTouchEnd(e: React.TouchEvent) {
+    const from = touch.current
+    if (!from) return
+    touch.current = null
+    const t = e.changedTouches[0]
+    const dx = t.clientX - from.x
+    const dy = t.clientY - from.y
+    if (Math.abs(dx) > SWIPE_MIN && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      /* Il tocco finisce comunque in un `click`: senza questa bandierina,
+         scorrere le foto aprirebbe anche l'ingrandimento. */
+      swiped.current = true
+      step(dx < 0 ? 1 : -1)
+      return
+    }
+    if (dy > 90 && from.top <= 0 && Math.abs(dy) > Math.abs(dx) * 1.5) onClose()
+  }
+
+  function openZoom() {
+    if (swiped.current) {
+      swiped.current = false
+      return
+    }
+    setZoomed(true)
+  }
+
   return (
     <>
       <div
         className="fixed inset-0 z-50 flex items-end justify-center bg-ink/70 p-0 backdrop-blur-[2px] sm:items-center sm:p-4"
         onClick={onClose}
-        role="dialog"
-        aria-modal="true"
-        aria-label={event.title}
       >
         <div
-          className="ink-box relative max-h-[92vh] w-full max-w-lg animate-stamp-in overflow-y-auto rounded-none"
+          ref={panelRef}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-label={event.title}
+          /* `dvh` e non `vh`: con la barra degli indirizzi che va e viene,
+             `vh` misura uno schermo che non c'è e il fondo resta tagliato.
+             `overscroll-contain` tiene lo scorrimento dentro la scheda invece
+             di trascinarsi dietro la pagina. */
+          className="ink-box relative max-h-[92dvh] w-full max-w-lg animate-sheet-up overflow-y-auto overscroll-contain rounded-none outline-none sm:max-h-[92vh] sm:animate-stamp-in"
           onClick={(e) => e.stopPropagation()}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
         >
+          {/* Maniglia del cassetto: dice che il foglio si tira giù. */}
+          <span
+            className="pointer-events-none absolute left-1/2 top-2 z-20 h-1 w-10 -translate-x-1/2 rounded-full bg-paper-hi/85 shadow-[0_0_0_1px_rgba(23,19,16,0.4)] sm:hidden"
+            aria-hidden
+          />
+
           <button
             onClick={onClose}
-            className="absolute right-3 top-3 z-10 border-2 border-ink bg-paper-hi p-1.5 text-ink shadow-[2px_2px_0_var(--color-ink)] transition-transform hover:translate-x-[1px] hover:translate-y-[1px]"
+            className="tap absolute right-3 top-3 z-10 border-2 border-ink bg-paper-hi p-2.5 text-ink shadow-[2px_2px_0_var(--color-ink)] transition-transform hover:translate-x-[1px] hover:translate-y-[1px] sm:p-1.5"
             aria-label="Chiudi"
           >
             <X size={16} />
@@ -140,7 +219,7 @@ export function EventModal({ event, onClose }: EventModalProps) {
             ) : current ? (
               <button
                 type="button"
-                onClick={() => setZoomed(true)}
+                onClick={openZoom}
                 className="group relative h-full w-full cursor-zoom-in"
                 aria-label="Ingrandisci la locandina"
               >
@@ -220,7 +299,7 @@ export function EventModal({ event, onClose }: EventModalProps) {
           )}
 
           {/* --------------------------------------------------- biglietto -- */}
-          <div className="space-y-4 p-5 sm:p-6">
+          <div className="safe-b space-y-4 p-5 sm:p-6 sm:pb-6">
             <div>
               <h2
                 className={`font-display text-2xl leading-tight font-black text-ink sm:text-3xl ${
@@ -318,12 +397,14 @@ export function EventModal({ event, onClose }: EventModalProps) {
               </div>
             )}
 
-            <div className="flex flex-wrap gap-3 pt-1">
+            {/* Sul telefono le due azioni prendono tutta la riga: bersagli
+                pieni invece di due pastiglie da centrare col pollice. */}
+            <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap">
               <a
                 href={googleCalendarAddUrl(event)}
                 target="_blank"
                 rel="noreferrer"
-                className="stamp-btn flex items-center gap-2 bg-vermiglio px-4 py-2 text-[0.68rem] font-bold tracking-[0.12em] uppercase text-paper-hi"
+                className="stamp-btn flex items-center justify-center gap-2 bg-vermiglio px-4 py-3 text-[0.68rem] font-bold tracking-[0.12em] uppercase text-paper-hi sm:justify-start sm:py-2"
               >
                 <CalendarPlus size={15} />
                 Segna in agenda
@@ -332,7 +413,7 @@ export function EventModal({ event, onClose }: EventModalProps) {
                 href={event.htmlLink}
                 target="_blank"
                 rel="noreferrer"
-                className="stamp-btn flex items-center gap-2 bg-paper-hi px-4 py-2 text-[0.68rem] font-bold tracking-[0.12em] uppercase text-ink"
+                className="stamp-btn flex items-center justify-center gap-2 bg-paper-hi px-4 py-3 text-[0.68rem] font-bold tracking-[0.12em] uppercase text-ink sm:justify-start sm:py-2"
               >
                 <ExternalLink size={15} />
                 Su Google
@@ -345,12 +426,14 @@ export function EventModal({ event, onClose }: EventModalProps) {
       {/* --------------------------------------------------------- lightbox -- */}
       {zoomed && current && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/95 p-4 sm:p-10"
+          className="safe-b fixed inset-0 z-[60] flex touch-none items-center justify-center overscroll-contain bg-ink/95 p-4 sm:p-10"
           onClick={() => setZoomed(false)}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
         >
           <button
             onClick={() => setZoomed(false)}
-            className="absolute right-4 top-4 border-2 border-paper-hi bg-transparent p-2 text-paper-hi transition-colors hover:bg-paper-hi hover:text-ink"
+            className="tap absolute right-4 top-4 border-2 border-paper-hi bg-transparent p-2.5 text-paper-hi transition-colors hover:bg-paper-hi hover:text-ink"
             aria-label="Chiudi ingrandimento"
           >
             <X size={20} />
@@ -363,7 +446,7 @@ export function EventModal({ event, onClose }: EventModalProps) {
                   e.stopPropagation()
                   step(-1)
                 }}
-                className="absolute left-2 top-1/2 -translate-y-1/2 border-2 border-paper-hi p-2 text-paper-hi transition-colors hover:bg-paper-hi hover:text-ink sm:left-6"
+                className="tap absolute left-2 top-1/2 -translate-y-1/2 border-2 border-paper-hi p-2.5 text-paper-hi transition-colors hover:bg-paper-hi hover:text-ink sm:left-6"
                 aria-label="Foto precedente"
               >
                 <ChevronLeft size={22} />
@@ -373,7 +456,7 @@ export function EventModal({ event, onClose }: EventModalProps) {
                   e.stopPropagation()
                   step(1)
                 }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 border-2 border-paper-hi p-2 text-paper-hi transition-colors hover:bg-paper-hi hover:text-ink sm:right-6"
+                className="tap absolute right-2 top-1/2 -translate-y-1/2 border-2 border-paper-hi p-2.5 text-paper-hi transition-colors hover:bg-paper-hi hover:text-ink sm:right-6"
                 aria-label="Foto successiva"
               >
                 <ChevronRight size={22} />
@@ -386,7 +469,7 @@ export function EventModal({ event, onClose }: EventModalProps) {
               src={current}
               alt={`Locandina di ${event.title}`}
               onClick={(e) => e.stopPropagation()}
-              className="max-h-[78vh] max-w-full cursor-zoom-out border-2 border-paper-hi object-contain shadow-[8px_8px_0_rgba(251,246,234,0.25)]"
+              className="max-h-[72dvh] max-w-full cursor-zoom-out border-2 border-paper-hi object-contain shadow-[8px_8px_0_rgba(251,246,234,0.25)] sm:max-h-[78vh]"
             />
             <figcaption className="text-center text-[0.65rem] font-bold tracking-[0.2em] uppercase text-paper-hi/70">
               {event.title}

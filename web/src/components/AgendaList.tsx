@@ -45,7 +45,8 @@ export function AgendaList({ events, extrasOf, onSelectEvent, emptyText }: Agend
       {months.map((month) => (
         <section key={month.key}>
           {/* Testata di mese come il taglio alto di una pagina di giornale. */}
-          <div className="sticky top-[7.5rem] z-10 -mx-1 flex items-baseline justify-between gap-3 border-b-2 border-ink bg-paper-hi px-1 pt-1 pb-1.5 backdrop-blur-sm">
+          {/* Si incolla sotto la testata, qualunque altezza abbia. */}
+          <div className="sticky top-[calc(var(--header-h)+0.25rem)] z-10 -mx-1 flex items-baseline justify-between gap-3 border-b-2 border-ink bg-paper-hi px-1 pt-1 pb-1.5 backdrop-blur-sm">
             <h3 className="font-display text-lg leading-none font-black text-ink sm:text-xl">
               {month.label}
             </h3>

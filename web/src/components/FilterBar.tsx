@@ -52,7 +52,9 @@ export function FilterBar({
             value={query}
             onChange={(e) => onQuery(e.target.value)}
             placeholder="Cerca una festa o un paese…"
-            className="w-full border-2 border-ink bg-paper py-1.5 pr-2 pl-8 text-sm text-ink outline-none placeholder:text-ink-faint focus:bg-paper-hi focus:ring-2 focus:ring-vermiglio"
+            /* 16px pieni: sotto quella misura Safari su iPhone ingrandisce la
+               pagina appena si tocca il campo e non la rimpicciolisce più. */
+            className="w-full border-2 border-ink bg-paper py-2 pr-2 pl-8 text-base text-ink outline-none placeholder:text-ink-faint focus:bg-paper-hi focus:ring-2 focus:ring-vermiglio sm:py-1.5 sm:text-sm"
           />
         </div>
 
@@ -74,7 +76,7 @@ export function FilterBar({
             <button
               key={r.key}
               onClick={() => onRange(r.key)}
-              className={`border-2 px-2.5 py-1 text-[0.6rem] font-bold tracking-[0.12em] uppercase transition-colors ${
+              className={`tap-grow flex items-center border-2 px-3 py-1.5 text-[0.6rem] font-bold tracking-[0.12em] uppercase transition-colors ${
                 range === r.key
                   ? 'border-ink bg-ink text-paper-hi'
                   : 'border-ink/25 bg-transparent text-ink-soft hover:border-ink hover:text-ink'
@@ -94,7 +96,7 @@ export function FilterBar({
               key={c.key}
               onClick={() => onToggleCategory(c.key)}
               aria-pressed={on}
-              className={`flex items-center gap-1.5 border-2 px-2 py-1 text-[0.6rem] font-bold tracking-[0.1em] uppercase transition-colors ${
+              className={`tap-grow flex items-center gap-1.5 border-2 px-2.5 py-1.5 text-[0.6rem] font-bold tracking-[0.1em] uppercase transition-colors ${
                 on ? 'border-ink text-paper-hi' : 'border-ink/25 text-ink-soft hover:border-ink hover:text-ink'
               }`}
               style={on ? { backgroundColor: c.color } : undefined}
@@ -112,7 +114,7 @@ export function FilterBar({
         {filtering && (
           <button
             onClick={onClear}
-            className="ml-auto flex items-center gap-1 text-[0.6rem] font-bold tracking-[0.12em] uppercase text-vermiglio hover:underline"
+            className="tap tap-grow ml-auto flex items-center gap-1 px-2 py-1.5 text-[0.6rem] font-bold tracking-[0.12em] uppercase text-vermiglio hover:underline"
           >
             <X size={11} />
             Azzera
@@ -142,7 +144,8 @@ function ViewButton({
     <button
       onClick={onClick}
       aria-pressed={active}
-      className={`flex items-center gap-1.5 border-2 border-ink px-2.5 py-1.5 text-[0.6rem] font-bold tracking-[0.12em] uppercase transition-colors first:border-r-0 ${
+      title={label}
+      className={`tap tap-grow flex items-center gap-1.5 border-2 border-ink px-3 py-2 text-[0.6rem] font-bold tracking-[0.12em] uppercase transition-colors first:border-r-0 ${
         active ? 'bg-ink text-paper-hi' : 'bg-paper-hi text-ink hover:bg-paper-2'
       }`}
     >

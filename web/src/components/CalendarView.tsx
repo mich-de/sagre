@@ -7,6 +7,7 @@ import itLocale from '@fullcalendar/core/locales/it'
 import { ChevronLeft, ChevronRight, Star } from 'lucide-react'
 import type { CalendarEvent } from '../lib/googleCalendar'
 import type { EventExtras } from '../lib/posters'
+import { useIsPhone } from '../hooks/useMediaQuery'
 import { categorize } from '../lib/categorize'
 import {
   NEXT_DAY_THRESHOLD,
@@ -29,6 +30,8 @@ const DAY_MS = 86_400_000
 export function CalendarView({ events, extrasOf, onSelectEvent }: CalendarViewProps) {
   const ref = useRef<FullCalendar | null>(null)
   const [current, setCurrent] = useState(() => new Date())
+  const phone = useIsPhone()
+  const swipe = useRef<{ x: number; y: number } | null>(null)
 
   const fcEvents = useMemo(
     () =>
@@ -172,7 +175,7 @@ export function CalendarView({ events, extrasOf, onSelectEvent }: CalendarViewPr
           </NavBtn>
           <button
             onClick={() => go('today')}
-            className="stamp-btn bg-paper-hi px-2.5 py-1.5 text-[0.6rem] font-bold tracking-[0.12em] uppercase text-ink"
+            className="stamp-btn tap tap-grow bg-paper-hi px-3 py-2 text-[0.6rem] font-bold tracking-[0.12em] uppercase text-ink sm:px-2.5 sm:py-1.5"
           >
             Oggi
           </button>
@@ -193,12 +196,31 @@ export function CalendarView({ events, extrasOf, onSelectEvent }: CalendarViewPr
               const [y, m] = e.target.value.split('-').map(Number)
               if (y && m) ref.current?.getApi().gotoDate(new Date(y, m - 1, 1))
             }}
-            className="border-2 border-ink bg-paper-hi px-2 py-1 text-[0.68rem] font-semibold text-ink outline-none focus:ring-2 focus:ring-vermiglio"
+            className="tap-grow border-2 border-ink bg-paper-hi px-2 py-1.5 text-base font-semibold text-ink outline-none focus:ring-2 focus:ring-vermiglio sm:py-1 sm:text-[0.68rem]"
           />
         </label>
       </div>
 
-      <div className="p-3 sm:p-5">
+      {/* Sfogliare i mesi con il pollice, come si sfoglia un calendario da
+          muro. Solo gesti chiaramente orizzontali: quelli storti restano
+          scorrimento della pagina. */}
+      <div
+        className="p-3 sm:p-5"
+        onTouchStart={(e) => {
+          const t = e.touches[0]
+          swipe.current = { x: t.clientX, y: t.clientY }
+        }}
+        onTouchEnd={(e) => {
+          const from = swipe.current
+          if (!from) return
+          swipe.current = null
+          const t = e.changedTouches[0]
+          const dx = t.clientX - from.x
+          const dy = t.clientY - from.y
+          if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+          go(dx < 0 ? 'next' : 'prev')
+        }}
+      >
         <FullCalendar
           ref={ref}
           plugins={[dayGridPlugin, interactionPlugin]}
@@ -219,7 +241,9 @@ export function CalendarView({ events, extrasOf, onSelectEvent }: CalendarViewPr
           eventDidMount={handleEventMount}
           dayCellContent={renderDayCell}
           datesSet={handleDatesSet}
-          dayMaxEvents={4}
+          /* Sul telefono la cella è alta un pollice scarso: oltre due blocchi
+             si accavallano e il resto passa dal foglietto "+n altri". */
+          dayMaxEvents={phone ? 2 : 4}
           eventOrder="start,-duration,allDay,title"
           firstDay={1}
         />
@@ -233,7 +257,7 @@ function NavBtn({ onClick, label, children }: { onClick: () => void; label: stri
     <button
       onClick={onClick}
       aria-label={label}
-      className="stamp-btn bg-paper-hi p-1.5 text-ink"
+      className="stamp-btn tap bg-paper-hi p-2.5 text-ink sm:p-1.5"
     >
       {children}
     </button>

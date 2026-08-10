@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/sagre/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- `viewport-fit=cover` porta la pagina sotto le tacche: i margini di
+         sicurezza li rimette il CSS con env(safe-area-inset-*). Niente
+         maximum-scale: lo zoom deve restare a disposizione di chi ci vede poco. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#F2E9D8" />
     <meta name="description" content="Calendario di sagre, feste ed eventi locali — scopri cosa succede vicino a te." />
     <title>Eventi e Sagre — calendario delle feste</title>

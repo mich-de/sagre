@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { CalendarDays, ShieldCheck } from 'lucide-react'
 
@@ -11,9 +12,22 @@ const TODAY_LINE = new Date().toLocaleDateString('it-IT', {
 export function Header() {
   const location = useLocation()
   const isAdmin = location.pathname.startsWith('/admin')
+  const ref = useRef<HTMLElement | null>(null)
+
+  /* La testata è alta quanto è alta: chi ci si appoggia in `sticky` legge la
+     misura vera invece di un numero scritto a mano che sbaglia sul telefono. */
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new ResizeObserver(([entry]) => {
+      document.documentElement.style.setProperty('--header-h', `${entry.contentRect.height}px`)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   return (
-    <header className="sticky top-0 z-40 border-b-2 border-ink bg-paper/95 backdrop-blur-sm">
+    <header ref={ref} className="safe-x sticky top-0 z-40 border-b-2 border-ink bg-paper/95 backdrop-blur-sm">
       {/* Filetto di servizio: data a sinistra, dicitura a destra. */}
       <div className="border-b border-ink/25">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-1 sm:px-6">
@@ -73,7 +87,7 @@ function NavLink({
   return (
     <Link
       to={to}
-      className={`stamp-btn flex items-center gap-1.5 px-2.5 py-1.5 text-[0.65rem] font-bold tracking-[0.12em] uppercase ${
+      className={`stamp-btn tap flex items-center gap-1.5 px-3 py-2 text-[0.65rem] font-bold tracking-[0.12em] uppercase ${
         active ? 'bg-ink text-paper-hi' : 'bg-paper-hi text-ink hover:bg-paper-2'
       }`}
     >
