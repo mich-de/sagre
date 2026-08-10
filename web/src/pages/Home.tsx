@@ -290,7 +290,10 @@ function DayPanel({
   const label = title === 'Oggi' ? when : addDays(when, 1)
 
   return (
-    <div className={`ink-box-sm p-3 ${accent ? 'border-vermiglio' : ''}`}>
+    /* `min-w-0`: senza, la cella della griglia non scende sotto la larghezza
+       del titolo più lungo — che essendo su una riga sola non va a capo — e la
+       pagina prende mezzo schermo di scorrimento laterale sul telefono. */
+    <div className={`ink-box-sm min-w-0 p-3 ${accent ? 'border-vermiglio' : ''}`}>
       <div className="flex items-baseline justify-between gap-2 border-b-2 border-ink/20 pb-2">
         <h2 className="font-display text-lg leading-none font-black text-ink">{title}</h2>
         <span className="eyebrow">
