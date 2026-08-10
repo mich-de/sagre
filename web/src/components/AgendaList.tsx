@@ -10,13 +10,17 @@ interface AgendaListProps {
   extrasOf: (eventId: string) => EventExtras
   onSelectEvent: (event: CalendarEvent) => void
   emptyText?: string
+  /** Ordine scelto dal lettore (alfabetico, ultimi aggiunti): gli eventi
+   *  arrivano già ordinati e i mesi non c'entrano più niente. */
+  flat?: boolean
 }
 
 /** Elenco fatto in casa al posto di quello di FullCalendar: qui ci stanno la
  *  miniatura della locandina, i timbri di stato e le sagre lunghe raccontate
  *  per intero, cose che la vista `listMonth` non sa disegnare. */
-export function AgendaList({ events, extrasOf, onSelectEvent, emptyText }: AgendaListProps) {
+export function AgendaList({ events, extrasOf, onSelectEvent, emptyText, flat }: AgendaListProps) {
   const months = useMemo(() => {
+    if (flat) return []
     const sorted = [...events].sort((a, b) => eventStart(a).getTime() - eventStart(b).getTime())
     const groups: Array<{ key: string; label: string; events: CalendarEvent[] }> = []
     for (const event of sorted) {
@@ -27,9 +31,9 @@ export function AgendaList({ events, extrasOf, onSelectEvent, emptyText }: Agend
       else groups.push({ key, label: monthLabel(start), events: [event] })
     }
     return groups
-  }, [events])
+  }, [events, flat])
 
-  if (months.length === 0) {
+  if (events.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-16 text-center">
         <CalendarX size={26} className="text-ink-faint" />
@@ -37,6 +41,18 @@ export function AgendaList({ events, extrasOf, onSelectEvent, emptyText }: Agend
           {emptyText ?? 'Nessun appuntamento in cartellone con questi filtri.'}
         </p>
       </div>
+    )
+  }
+
+  if (flat) {
+    return (
+      <ul className="space-y-2">
+        {events.map((event) => (
+          <li key={event.id}>
+            <EventCard event={event} extras={extrasOf(event.id)} onSelect={onSelectEvent} />
+          </li>
+        ))}
+      </ul>
     )
   }
 

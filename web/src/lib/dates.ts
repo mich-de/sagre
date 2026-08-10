@@ -161,6 +161,16 @@ export function startTime(event: CalendarEvent): string | null {
   return event.allDay ? null : time(eventStart(event))
 }
 
+/** "oggi", "ieri", "3 giorni fa", poi la data secca. Per la riga "ultima
+ *  modifica": a chi cura le locandine interessa se è roba di stamattina. */
+export function relativeDay(value: Date, now: Date = new Date()): string {
+  const days = Math.round((startOfDay(now).getTime() - startOfDay(value).getTime()) / DAY_MS)
+  if (days <= 0) return 'oggi'
+  if (days === 1) return 'ieri'
+  if (days < 7) return `${days} giorni fa`
+  return shortDate(value)
+}
+
 /** "Agosto 2026" — intestazione di sezione nell'elenco. */
 export function monthLabel(d: Date): string {
   return cap(fmt(d, { month: 'long', year: 'numeric' }))

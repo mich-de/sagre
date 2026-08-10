@@ -9,6 +9,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  Timestamp,
   updateDoc,
 } from 'firebase/firestore'
 import { db } from './firebase'
@@ -60,6 +61,10 @@ export interface EventExtras {
   status: EventStatus
   /** Copertina ancora nel vecchio schema, in attesa di migrazione. */
   hasLegacyCover: boolean
+  /** Chi ha toccato la scheda e quando: l'ufficio manifesti ci ordina
+   *  l'elenco, così si riprende da dove si era rimasti. */
+  updatedAt: Date | null
+  updatedBy: string
 }
 
 /** Quel che serve alla scheda del singolo evento: pesante. */
@@ -83,6 +88,8 @@ export const EMPTY_EXTRAS: EventExtras = {
   featured: false,
   status: 'confermato',
   hasLegacyCover: false,
+  updatedAt: null,
+  updatedBy: '',
 }
 
 const posterRef = (eventId: string) => doc(db, 'posters', eventId)
@@ -98,6 +105,8 @@ function toExtras(eventId: string, data: PosterDoc | null): EventExtras {
     featured: data?.featured ?? false,
     status: data?.status ?? 'confermato',
     hasLegacyCover: Boolean(data?.dataUrl),
+    updatedAt: data?.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
+    updatedBy: data?.updatedBy ?? '',
   }
 }
 
@@ -216,6 +225,93 @@ export async function deleteEverything(eventId: string): Promise<void> {
   const photos = await listPhotos(eventId)
   await Promise.all(photos.map((p) => deletePhoto(eventId, p.id)))
   await deleteDoc(posterRef(eventId))
+}
+
+/* ----------------------------------------------------------- copia e blocco -- */
+
+export interface CopyParts {
+  photos: boolean
+  links: boolean
+  note: boolean
+  category: boolean
+}
+
+/** Ricopia la scheda di un evento su un altro. Le sagre tornano ogni anno con
+ *  la stessa locandina, gli stessi social e la stessa nota: rifare tutto a
+ *  mano è la parte più noiosa del lavoro.
+ *  Attenzione: con `photos` le immagini di destinazione vengono **sostituite**,
+ *  non aggiunte — altrimenti l'ordine e la copertina diventerebbero un caso. */
+export async function copyExtras(
+  sourceId: string,
+  targetId: string,
+  parts: CopyParts,
+  updatedBy: string
+): Promise<void> {
+  const source = await getPoster(sourceId)
+  const patch: ExtrasPatch = {}
+  if (parts.links) patch.links = source?.links ?? []
+  if (parts.note) patch.note = source?.note ?? ''
+  if (parts.category) patch.category = source?.category ?? null
+
+  if (parts.photos) {
+    const [from, existing] = await Promise.all([listPhotos(sourceId), listPhotos(targetId)])
+    /* Il vecchio schema tiene la copertina nel documento padre: se la
+       sottocollezione è vuota è lì che va cercata. */
+    const images = from.length > 0 ? from.map((p) => p.dataUrl) : source?.dataUrl ? [source.dataUrl] : []
+    await Promise.all(existing.map((p) => deletePhoto(targetId, p.id)))
+    let order = 0
+    for (const dataUrl of images.slice(0, MAX_PHOTOS)) {
+      await addPhoto(targetId, dataUrl, order++, updatedBy)
+    }
+    patch.thumb = images[0] ? await makeThumb(images[0]) : null
+    patch.dataUrl = null
+  }
+
+  await saveExtras(targetId, patch, updatedBy)
+}
+
+export interface BulkReport {
+  fatti: number
+  errori: number
+}
+
+/** Stessa modifica su più eventi, uno alla volta: con settanta schede una
+ *  raffica di scritture in parallelo si prende solo un errore di quota. */
+export async function bulkSaveExtras(
+  eventIds: string[],
+  patch: ExtrasPatch,
+  updatedBy: string,
+  onProgress?: (done: number, total: number) => void
+): Promise<BulkReport> {
+  return runBulk(eventIds, (id) => saveExtras(id, patch, updatedBy), onProgress)
+}
+
+/** Svuota le locandine di più eventi. Note, categoria e stato restano. */
+export async function bulkDeletePhotos(
+  eventIds: string[],
+  updatedBy: string,
+  onProgress?: (done: number, total: number) => void
+): Promise<BulkReport> {
+  return runBulk(eventIds, (id) => deleteAllPhotos(id, updatedBy), onProgress)
+}
+
+async function runBulk(
+  eventIds: string[],
+  action: (eventId: string) => Promise<unknown>,
+  onProgress?: (done: number, total: number) => void
+): Promise<BulkReport> {
+  const report: BulkReport = { fatti: 0, errori: 0 }
+  let done = 0
+  for (const id of eventIds) {
+    try {
+      await action(id)
+      report.fatti += 1
+    } catch {
+      report.errori += 1
+    }
+    onProgress?.((done += 1), eventIds.length)
+  }
+  return report
 }
 
 /** Porta una copertina del vecchio schema nella sottocollezione e genera la

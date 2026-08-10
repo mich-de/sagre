@@ -7,6 +7,10 @@ export interface CalendarEvent {
   end: string
   allDay: boolean
   htmlLink: string
+  /** Quando l'evento è stato scritto sul calendario, non quando si svolge:
+   *  serve all'ordinamento "ultimi aggiunti". */
+  created: string
+  updated: string
 }
 
 interface GCalDateTime {
@@ -24,6 +28,8 @@ interface GCalEvent {
   end: GCalDateTime
   htmlLink: string
   status: string
+  created?: string
+  updated?: string
 }
 
 interface GCalEventsResponse {
@@ -45,6 +51,8 @@ function toCalendarEvent(raw: GCalEvent): CalendarEvent {
     end: (raw.end.dateTime ?? raw.end.date) as string,
     allDay,
     htmlLink: raw.htmlLink,
+    created: raw.created ?? '',
+    updated: raw.updated ?? '',
   }
 }
 

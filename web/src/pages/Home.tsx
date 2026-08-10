@@ -1,55 +1,44 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { RefreshCw, AlertTriangle, MapPin, ArrowRight, Star, CalendarX } from 'lucide-react'
 import { useCalendarEvents } from '../hooks/useCalendarEvents'
 import { useEventExtras } from '../hooks/useEventExtras'
+import { useHomeFilters } from '../hooks/useHomeFilters'
 import { CalendarView } from '../components/CalendarView'
 import { AgendaList } from '../components/AgendaList'
 import { EventCard } from '../components/EventCard'
 import { EventModal } from '../components/EventModal'
 import { DateRange } from '../components/DateRange'
-import { FilterBar, type CalendarViewMode, type TimeRange } from '../components/FilterBar'
+import { FilterBar } from '../components/FilterBar'
 import { categorize, CATEGORIES } from '../lib/categorize'
+import { inTimeRange, sortEvents } from '../lib/filters'
+import { collectPlaces, inPlace } from '../lib/places'
 import {
   addDays,
   eventStart,
   eventEndExclusive,
   isOngoing,
-  isOver,
   formatDuration,
   isMultiDay,
   occursOn,
-  startOfDay,
 } from '../lib/dates'
 import type { CalendarEvent } from '../lib/googleCalendar'
 import type { EventExtras } from '../lib/posters'
-
-const VIEW_KEY = 'sagre.view'
 
 export function Home() {
   const { events, loading, error, reload } = useCalendarEvents()
   const { extrasOf, reload: reloadExtras } = useEventExtras()
   const [selected, setSelected] = useState<CalendarEvent | null>(null)
 
-  const [query, setQuery] = useState('')
-  const [categories, setCategories] = useState<string[]>([])
-  const [range, setRange] = useState<TimeRange>('futuri')
-  /* La vista scelta se la ricorda il browser: chi preferisce l'elenco non
-     deve ricliccare a ogni visita. Sul telefono la griglia è illeggibile,
-     quindi lì si parte comunque dall'elenco. */
-  const [view, setView] = useState<CalendarViewMode>(() => {
-    const saved = localStorage.getItem(VIEW_KEY)
-    if (saved === 'grid' || saved === 'list') return saved
-    return window.matchMedia('(max-width: 640px)').matches ? 'list' : 'grid'
-  })
+  /* Filtri e vista stanno nell'indirizzo: il link è condivisibile e il tasto
+     indietro torna ai filtri di prima. */
+  const { filters, set, clear, filtering } = useHomeFilters()
+  const { query, categories, range, from, to, place, sort, view } = filters
 
-  useEffect(() => {
-    localStorage.setItem(VIEW_KEY, view)
-  }, [view])
+  const places = useMemo(() => collectPlaces(events), [events])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const weekEnd = addDays(startOfDay(new Date()), 8)
-    return events.filter((event) => {
+    const kept = events.filter((event) => {
       const extras = extrasOf(event.id)
       if (
         categories.length > 0 &&
@@ -60,15 +49,14 @@ export function Home() {
       if (q && !`${event.title} ${event.location} ${event.description}`.toLowerCase().includes(q)) {
         return false
       }
+      if (place && !inPlace(event, place)) return false
       /* La finestra temporale vale solo per l'elenco: nella griglia il mese
          che si sta guardando è già la finestra. */
-      if (view === 'list') {
-        if (range !== 'tutti' && isOver(event)) return false
-        if (range === 'settimana' && eventStart(event) >= weekEnd) return false
-      }
+      if (view === 'list' && !inTimeRange(event, range, from, to)) return false
       return true
     })
-  }, [events, extrasOf, categories, query, range, view])
+    return view === 'list' ? sortEvents(kept, sort) : kept
+  }, [events, extrasOf, categories, query, place, range, from, to, sort, view])
 
   const today = useMemo(() => events.filter((e) => occursOn(e, new Date())), [events])
   const tomorrow = useMemo(() => events.filter((e) => occursOn(e, addDays(new Date(), 1))), [events])
@@ -88,16 +76,6 @@ export function Home() {
   )
   const headlineFeatured = headline ? extrasOf(headline.id).featured : false
   const headlineOngoing = headline ? isOngoing(headline) : false
-
-  function toggleCategory(key: string) {
-    setCategories((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
-  }
-
-  function clearFilters() {
-    setCategories([])
-    setQuery('')
-    setRange('futuri')
-  }
 
   return (
     <main className="page-x mx-auto max-w-5xl pb-[max(4rem,env(safe-area-inset-bottom))]">
@@ -211,15 +189,11 @@ export function Home() {
         {!loading && (
           <div className="mb-4">
             <FilterBar
-              query={query}
-              onQuery={setQuery}
-              active={categories}
-              onToggleCategory={toggleCategory}
-              onClear={clearFilters}
-              view={view}
-              onView={setView}
-              range={range}
-              onRange={setRange}
+              filters={filters}
+              onChange={set}
+              onClear={clear}
+              places={places}
+              filtering={filtering}
               shown={filtered.length}
               total={events.length}
             />
@@ -244,7 +218,14 @@ export function Home() {
         ) : (
           <div className="ink-box p-3 sm:p-5">
             <div className="bunting -mx-3 -mt-3 mb-4 sm:-mx-5 sm:-mt-5" aria-hidden />
-            <AgendaList events={filtered} extrasOf={extrasOf} onSelectEvent={setSelected} />
+            <AgendaList
+              events={filtered}
+              extrasOf={extrasOf}
+              onSelectEvent={setSelected}
+              /* Con un ordine diverso dal cronologico i mesi non fanno più da
+                 capitolo: l'elenco resta uno solo, nell'ordine chiesto. */
+              flat={sort !== 'prossimi'}
+            />
           </div>
         )}
       </section>
