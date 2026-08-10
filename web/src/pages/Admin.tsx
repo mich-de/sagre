@@ -22,14 +22,20 @@ import {
   ListChecks,
   ArrowDownWideNarrow,
   MapPin,
+  CalendarPlus,
+  CalendarCog,
+  Pencil,
+  Unlink,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useCalendarEvents } from '../hooks/useCalendarEvents'
 import { useEventExtras } from '../hooks/useEventExtras'
+import { useGoogleLink, type GoogleLink } from '../hooks/useGoogleLink'
 import { useIsPhone } from '../hooks/useMediaQuery'
 import { EventModal } from '../components/EventModal'
 import { BulkActions } from '../components/admin/BulkActions'
 import { CopyFromDialog } from '../components/admin/CopyFromDialog'
+import { EventForm } from '../components/admin/EventForm'
 import {
   getEventMedia,
   getPoster,
@@ -191,8 +197,9 @@ const hasPoster = (ex: EventExtras) => Boolean(ex.thumb) || ex.hasLegacyCover
 const shortUser = (email: string) => email.split('@')[0]
 
 function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: () => void }) {
-  const { events, loading, error } = useCalendarEvents()
+  const { events, loading, error, reload: reloadEvents } = useCalendarEvents()
   const { extras, loading: extrasLoading, reload: reloadExtras } = useEventExtras()
+  const google = useGoogleLink()
   const phone = useIsPhone()
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -203,6 +210,12 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
   const [selectMode, setSelectMode] = useState(false)
   const [picked, setPicked] = useState<string[]>([])
   const [preview, setPreview] = useState<CalendarEvent | null>(null)
+  /* `form.open` a parte: `null` come bersaglio vuol dire "evento nuovo", e da
+     solo non basta a distinguere il modulo chiuso da quello vuoto. */
+  const [form, setForm] = useState<{ open: boolean; target: CalendarEvent | null }>({
+    open: false,
+    target: null,
+  })
 
   const editorRef = useRef<HTMLDivElement | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
@@ -322,6 +335,24 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
 
   const allPicked = filtered.length > 0 && filtered.every((e) => picked.includes(e.id))
 
+  /* Dopo una scrittura sul calendario si rilegge tutto: le date le normalizza
+     Google, e l'id di un evento nuovo lo decide lui. */
+  function handleSaved(eventId: string) {
+    setSelectedId(eventId)
+    reloadEvents()
+  }
+
+  function handleDeleted(eventId: string) {
+    if (selectedId === eventId) setSelectedId(null)
+    setPicked((prev) => prev.filter((id) => id !== eventId))
+    setLocal((prev) => {
+      const next = { ...prev }
+      delete next[eventId]
+      return next
+    })
+    reloadEvents()
+  }
+
   return (
     <div className="animate-ink-rise">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -342,6 +373,8 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
       </div>
 
       <div className="rule-double mt-5 mb-5" />
+
+      <GoogleLinkBar google={google} onNew={() => setForm({ open: true, target: null })} />
 
       {/* ------------------------------------------------------- cruscotto -- */}
       <dl className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -547,6 +580,7 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
               hasPrev={index > 0}
               hasNext={index >= 0 && index < filtered.length - 1}
               onPreview={() => setPreview(selected)}
+              onEdit={google.linked ? () => setForm({ open: true, target: selected }) : null}
               onBackToList={() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
             />
           ) : (
@@ -562,6 +596,77 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
 
       {/* La scheda com'è sul sito pubblico, senza uscire dall'ufficio. */}
       {preview && <EventModal event={preview} onClose={() => setPreview(null)} />}
+
+      {form.open && (
+        <EventForm
+          event={form.target}
+          onClose={() => setForm({ open: false, target: null })}
+          onSaved={handleSaved}
+          onDeleted={handleDeleted}
+        />
+      )}
+    </div>
+  )
+}
+
+/** Il permesso di scrivere sul calendario. Sta in cima all'ufficio perché
+ *  senza di quello metà dei comandi non compare, e chi apre la pagina deve
+ *  capire subito perché. */
+function GoogleLinkBar({ google, onNew }: { google: GoogleLink; onNew: () => void }) {
+  if (!google.available) return null
+
+  return (
+    <div className="mb-5 flex flex-wrap items-center gap-2 border-2 border-ink bg-paper-2 p-3">
+      <CalendarCog size={18} className="shrink-0 text-ink" />
+      <p className="min-w-44 flex-1 text-xs leading-relaxed text-ink-soft">
+        {google.linked ? (
+          <>
+            <strong className="font-semibold text-ink">Calendario collegato.</strong> Puoi aggiungere
+            eventi, spostare le date e cancellarli.
+          </>
+        ) : (
+          <>
+            <strong className="font-semibold text-ink">Calendario in sola lettura.</strong> Collega il
+            tuo account Google per creare e modificare gli eventi.
+          </>
+        )}
+      </p>
+
+      {google.linked ? (
+        <>
+          <button
+            onClick={onNew}
+            className="stamp-btn tap tap-grow flex items-center gap-1.5 bg-vermiglio px-3 py-2 text-[0.65rem] font-bold tracking-[0.12em] uppercase text-paper-hi sm:py-1.5"
+          >
+            <CalendarPlus size={13} />
+            Nuovo evento
+          </button>
+          <button
+            onClick={google.unlink}
+            aria-label="Scollega l'account Google"
+            className="stamp-btn tap tap-grow flex items-center gap-1.5 bg-paper-hi px-3 py-2 text-[0.65rem] font-bold tracking-[0.12em] uppercase text-ink sm:py-1.5"
+          >
+            <Unlink size={13} />
+            Scollega
+          </button>
+        </>
+      ) : (
+        <button
+          onClick={() => void google.link()}
+          disabled={google.busy}
+          className="stamp-btn tap tap-grow flex items-center gap-1.5 bg-ink px-3 py-2 text-[0.65rem] font-bold tracking-[0.12em] uppercase text-paper-hi disabled:opacity-50 sm:py-1.5"
+        >
+          <Link2 size={13} />
+          {google.busy ? 'Aspetto Google…' : 'Collega Google'}
+        </button>
+      )}
+
+      {google.error && (
+        <p className="flex basis-full items-start gap-1.5 text-[0.68rem] font-semibold text-vermiglio">
+          <AlertTriangle size={12} className="mt-0.5 shrink-0" />
+          {google.error}
+        </p>
+      )}
     </div>
   )
 }
@@ -663,6 +768,7 @@ function EventEditor({
   hasPrev,
   hasNext,
   onPreview,
+  onEdit,
   onBackToList,
 }: {
   event: CalendarEvent
@@ -675,6 +781,9 @@ function EventEditor({
   hasPrev: boolean
   hasNext: boolean
   onPreview: () => void
+  /** `null` quando l'account Google non è collegato: senza permesso il
+   *  bottone porterebbe solo a un errore. */
+  onEdit: (() => void) | null
   onBackToList: () => void
 }) {
   const [media, setMedia] = useState<EventMedia>(EMPTY_MEDIA)
@@ -902,6 +1011,15 @@ function EventEditor({
           <Eye size={13} />
           Anteprima
         </button>
+        {onEdit && (
+          <button
+            onClick={onEdit}
+            className="stamp-btn tap-grow flex items-center gap-1.5 bg-paper-hi px-2.5 py-2 text-[0.6rem] font-bold tracking-[0.1em] uppercase text-ink sm:py-1.5"
+          >
+            <Pencil size={13} />
+            Date e testi
+          </button>
+        )}
         <button
           onClick={() => setCopyOpen(true)}
           disabled={busy || loading}
