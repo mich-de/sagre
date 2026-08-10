@@ -261,7 +261,10 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
       )}
 
       <div className="grid gap-5 sm:grid-cols-[16rem_1fr]">
-        <div>
+        {/* `min-w-0`: la colonna non deve allargarsi fino al titolo più lungo
+            dell'elenco — quelli sono troncati e non vanno a capo. Senza, la
+            pagina scorre di lato sul telefono. */}
+        <div className="min-w-0">
           <div className="relative mb-2">
             <Search size={14} className="absolute top-1/2 left-2.5 -translate-y-1/2 text-ink-faint" />
             <input
@@ -336,7 +339,7 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
           </div>
         </div>
 
-        <div className="ink-box p-4 sm:p-5">
+        <div className="ink-box min-w-0 p-4 sm:p-5">
           {selected ? (
             <EventEditor
               key={selected.id}
