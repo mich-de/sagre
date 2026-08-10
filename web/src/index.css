@@ -127,13 +127,29 @@ summary,
 }
 
 /* Margini di sicurezza: sotto la barra home dell'iPhone non ci va niente di
-   cliccabile. */
+   cliccabile, e nei bordi arrotondati non ci va niente da leggere.
+   Attenzione: queste classi *impongono* il margine, non lo aggiungono. Su un
+   elemento che ha già una sua spaziatura usa `.page-x`, che tiene il maggiore
+   dei due, altrimenti il testo finisce a filo di schermo. */
 .safe-b {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 .safe-x {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
+}
+
+/* Cornice della pagina: il margine di lettura, allargato dove il vetro è
+   arrotondato. Sostituisce `px-4 sm:px-6`, non ci si somma. */
+.page-x {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+@media (min-width: 640px) {
+  .page-x {
+    padding-left: max(1.5rem, env(safe-area-inset-left));
+    padding-right: max(1.5rem, env(safe-area-inset-right));
+  }
 }
 
 /* --------------------------------------------------- oggetti di stampa -- */

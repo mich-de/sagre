@@ -60,7 +60,7 @@ export function Admin() {
   }
 
   return (
-    <main className="safe-b safe-x mx-auto max-w-5xl px-4 py-8 sm:px-6">
+    <main className="page-x mx-auto max-w-5xl pt-8 pb-[max(2rem,env(safe-area-inset-bottom))]">
       {user ? <PosterManager userEmail={user.email ?? ''} onLogout={logout} /> : <LoginForm onLogin={login} />}
     </main>
   )

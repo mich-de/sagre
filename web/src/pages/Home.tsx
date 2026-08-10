@@ -100,7 +100,7 @@ export function Home() {
   }
 
   return (
-    <main className="safe-b safe-x mx-auto max-w-5xl px-4 pb-16 sm:px-6">
+    <main className="page-x mx-auto max-w-5xl pb-[max(4rem,env(safe-area-inset-bottom))]">
       {/* ------------------------------------------------------ manifesto -- */}
       <section className="relative animate-ink-rise pt-10 pb-8">
         <div className="halftone pointer-events-none absolute -top-2 right-0 h-40 w-40 sm:h-56 sm:w-56" aria-hidden />

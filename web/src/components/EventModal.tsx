@@ -299,7 +299,7 @@ export function EventModal({ event, onClose }: EventModalProps) {
           )}
 
           {/* --------------------------------------------------- biglietto -- */}
-          <div className="safe-b space-y-4 p-5 sm:p-6 sm:pb-6">
+          <div className="space-y-4 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6 sm:pb-6">
             <div>
               <h2
                 className={`font-display text-2xl leading-tight font-black text-ink sm:text-3xl ${
@@ -343,7 +343,7 @@ export function EventModal({ event, onClose }: EventModalProps) {
                 href={`https://maps.google.com/?q=${encodeURIComponent(event.location)}`}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-start gap-2 text-sm font-medium text-ink underline decoration-ink/30 underline-offset-4 transition-colors hover:text-vermiglio hover:decoration-vermiglio"
+                className="tap flex items-start gap-2 py-1.5 text-sm font-medium text-ink underline decoration-ink/30 underline-offset-4 transition-colors hover:text-vermiglio hover:decoration-vermiglio"
               >
                 <MapPin size={15} className="mt-0.5 shrink-0" />
                 <span>{event.location}</span>
