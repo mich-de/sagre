@@ -180,6 +180,39 @@ export function monthKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
+export interface MonthGroup {
+  key: string
+  label: string
+  events: CalendarEvent[]
+}
+
+/** Eventi divisi in capitoli mensili, in ordine di data. Lo stesso taglio lo
+ *  usano l'elenco e l'indice dei mesi in cima: se lo calcolassero ognuno per
+ *  conto suo, prima o poi mostrerebbero due cartelloni diversi. */
+export function groupByMonth(events: CalendarEvent[]): MonthGroup[] {
+  const sorted = [...events].sort((a, b) => eventStart(a).getTime() - eventStart(b).getTime())
+  const groups: MonthGroup[] = []
+  for (const event of sorted) {
+    const start = eventStart(event)
+    const key = monthKey(start)
+    const last = groups[groups.length - 1]
+    if (last?.key === key) last.events.push(event)
+    else groups.push({ key, label: monthLabel(start), events: [event] })
+  }
+  return groups
+}
+
+/** Ancora del capitolo: l'indice dei mesi ci salta sopra. */
+export function monthAnchorId(key: string): string {
+  return `mese-${key}`
+}
+
+/** "Ago" — etichetta cortissima per l'indice dei mesi. */
+export function shortMonthLabel(key: string): string {
+  const [y, m] = key.split('-').map(Number)
+  return cap(fmt(new Date(y, m - 1, 1), { month: 'short' })).replace('.', '')
+}
+
 /** "3 giorni" / "1 giorno" — usato come pastiglia sulle sagre lunghe. */
 export function formatDuration(event: CalendarEvent): string {
   const days = eventDayCount(event)

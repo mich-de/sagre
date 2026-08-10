@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useMemo, type ReactNode } from 'react'
 import { RefreshCw, AlertTriangle, MapPin, ArrowRight, Star, CalendarX } from 'lucide-react'
 import { useCalendarEvents } from '../hooks/useCalendarEvents'
 import { useEventExtras } from '../hooks/useEventExtras'
@@ -9,6 +9,9 @@ import { EventCard } from '../components/EventCard'
 import { EventModal } from '../components/EventModal'
 import { DateRange } from '../components/DateRange'
 import { FilterBar } from '../components/FilterBar'
+import { MonthRail } from '../components/MonthRail'
+import { NoResults } from '../components/NoResults'
+import { BackToTop } from '../components/BackToTop'
 import { categorize, CATEGORIES } from '../lib/categorize'
 import { inTimeRange, sortEvents } from '../lib/filters'
 import { collectPlaces, inPlace } from '../lib/places'
@@ -16,6 +19,7 @@ import {
   addDays,
   eventStart,
   eventEndExclusive,
+  groupByMonth,
   isOngoing,
   formatDuration,
   isMultiDay,
@@ -27,12 +31,12 @@ import type { EventExtras } from '../lib/posters'
 export function Home() {
   const { events, loading, error, reload } = useCalendarEvents()
   const { extrasOf, reload: reloadExtras } = useEventExtras()
-  const [selected, setSelected] = useState<CalendarEvent | null>(null)
 
-  /* Filtri e vista stanno nell'indirizzo: il link è condivisibile e il tasto
-     indietro torna ai filtri di prima. */
-  const { filters, set, clear, filtering } = useHomeFilters()
+  /* Filtri, vista e scheda aperta stanno nell'indirizzo: il link è
+     condivisibile e il tasto indietro torna a quel che c'era prima. */
+  const { filters, set, clear, filtering, eventId, openEvent, closeEvent } = useHomeFilters()
   const { query, categories, range, from, to, place, sort, view } = filters
+  const setSelected = useCallback((event: CalendarEvent) => openEvent(event.id), [openEvent])
 
   const places = useMemo(() => collectPlaces(events), [events])
 
@@ -57,6 +61,26 @@ export function Home() {
     })
     return view === 'list' ? sortEvents(kept, sort) : kept
   }, [events, extrasOf, categories, query, place, range, from, to, sort, view])
+
+  /* Indice dei mesi: solo dove i mesi fanno ancora da capitolo, cioè
+     nell'elenco in ordine cronologico, e solo se ce n'è più d'uno. */
+  const months = useMemo(
+    () => (view === 'list' && sort === 'prossimi' ? groupByMonth(filtered) : []),
+    [filtered, view, sort]
+  )
+
+  /* La scheda aperta arriva dall'indirizzo, non da uno stato a parte: così un
+     link condiviso apre già la sagra giusta. */
+  const selected = useMemo(
+    () => (eventId ? (events.find((e) => e.id === eventId) ?? null) : null),
+    [events, eventId]
+  )
+  /* Si sfoglia il cartellone filtrato. Una sagra aperta da "oggi" o dalla
+     testa del giornale può non starci dentro: lì le frecce non compaiono. */
+  const navIndex = useMemo(
+    () => (selected ? filtered.findIndex((e) => e.id === selected.id) : -1),
+    [filtered, selected]
+  )
 
   const today = useMemo(() => events.filter((e) => occursOn(e, new Date())), [events])
   const tomorrow = useMemo(() => events.filter((e) => occursOn(e, addDays(new Date(), 1))), [events])
@@ -213,11 +237,16 @@ export function Home() {
               ))}
             </div>
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="ink-box p-3 sm:p-5">
+            <NoResults filters={filters} onChange={set} onClear={clear} />
+          </div>
         ) : view === 'grid' ? (
           <CalendarView events={filtered} extrasOf={extrasOf} onSelectEvent={setSelected} />
         ) : (
           <div className="ink-box p-3 sm:p-5">
             <div className="bunting -mx-3 -mt-3 mb-4 sm:-mx-5 sm:-mt-5" aria-hidden />
+            {months.length > 1 && <MonthRail months={months} />}
             <AgendaList
               events={filtered}
               extrasOf={extrasOf}
@@ -247,7 +276,25 @@ export function Home() {
         <p className="eyebrow">Stampato in proprio · Le locandine sono caricate dall'organizzatore</p>
       </footer>
 
-      {selected && <EventModal event={selected} onClose={() => setSelected(null)} />}
+      {!selected && <BackToTop />}
+
+      {selected && (
+        <EventModal
+          event={selected}
+          onClose={closeEvent}
+          /* Sfogliare non lascia tappe nella cronologia: chiudere deve
+             riportare al cartellone, non alla sagra di prima. */
+          onPrev={
+            navIndex > 0 ? () => openEvent(filtered[navIndex - 1].id, { replace: true }) : null
+          }
+          onNext={
+            navIndex >= 0 && navIndex < filtered.length - 1
+              ? () => openEvent(filtered[navIndex + 1].id, { replace: true })
+              : null
+          }
+          position={navIndex >= 0 ? { index: navIndex, total: filtered.length } : null}
+        />
+      )}
     </main>
   )
 }

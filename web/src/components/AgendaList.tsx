@@ -3,7 +3,7 @@ import { CalendarX } from 'lucide-react'
 import type { CalendarEvent } from '../lib/googleCalendar'
 import type { EventExtras } from '../lib/posters'
 import { EventCard } from './EventCard'
-import { eventStart, monthKey, monthLabel } from '../lib/dates'
+import { groupByMonth, monthAnchorId } from '../lib/dates'
 
 interface AgendaListProps {
   events: CalendarEvent[]
@@ -19,19 +19,7 @@ interface AgendaListProps {
  *  miniatura della locandina, i timbri di stato e le sagre lunghe raccontate
  *  per intero, cose che la vista `listMonth` non sa disegnare. */
 export function AgendaList({ events, extrasOf, onSelectEvent, emptyText, flat }: AgendaListProps) {
-  const months = useMemo(() => {
-    if (flat) return []
-    const sorted = [...events].sort((a, b) => eventStart(a).getTime() - eventStart(b).getTime())
-    const groups: Array<{ key: string; label: string; events: CalendarEvent[] }> = []
-    for (const event of sorted) {
-      const start = eventStart(event)
-      const key = monthKey(start)
-      const last = groups[groups.length - 1]
-      if (last?.key === key) last.events.push(event)
-      else groups.push({ key, label: monthLabel(start), events: [event] })
-    }
-    return groups
-  }, [events, flat])
+  const months = useMemo(() => (flat ? [] : groupByMonth(events)), [events, flat])
 
   if (events.length === 0) {
     return (
@@ -61,8 +49,13 @@ export function AgendaList({ events, extrasOf, onSelectEvent, emptyText, flat }:
       {months.map((month) => (
         <section key={month.key}>
           {/* Testata di mese come il taglio alto di una pagina di giornale. */}
-          {/* Si incolla sotto la testata, qualunque altezza abbia. */}
-          <div className="sticky top-[calc(var(--header-h)+0.25rem)] z-10 -mx-1 flex items-baseline justify-between gap-3 border-b-2 border-ink bg-paper-hi px-1 pt-1 pb-1.5 backdrop-blur-sm">
+          {/* Si incolla sotto la testata e sotto l'indice dei mesi, qualunque
+              altezza abbiano: `--rail-h` vale 0 quando l'indice non c'è. */}
+          <div
+            id={monthAnchorId(month.key)}
+            style={{ scrollMarginTop: 'calc(var(--header-h) + var(--rail-h, 0px) + 0.75rem)' }}
+            className="sticky top-[calc(var(--header-h)+var(--rail-h,0px)+0.25rem)] z-10 -mx-1 flex items-baseline justify-between gap-3 border-b-2 border-ink bg-paper-hi px-1 pt-1 pb-1.5 backdrop-blur-sm"
+          >
             <h3 className="font-display text-lg leading-none font-black text-ink sm:text-xl">
               {month.label}
             </h3>

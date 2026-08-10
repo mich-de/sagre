@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { CalendarViewMode, SortKey, TimeRange } from '../lib/filters'
 
 /* ---------------------------------------------------------------------------
@@ -49,10 +49,18 @@ export interface UseHomeFiltersResult {
   set: (patch: Partial<HomeFilters>, options?: { replace?: boolean }) => void
   clear: () => void
   filtering: boolean
+  /** L'evento aperto sta nell'indirizzo: il link porta l'amico dritto alla
+   *  sagra, e il tasto indietro chiude la scheda invece di uscire dal sito. */
+  eventId: string
+  /** `replace` per lo sfogliare da una scheda all'altra: venti sagre lette di
+   *  fila non devono lasciare venti tappe da annullare per uscire. */
+  openEvent: (eventId: string, options?: { replace?: boolean }) => void
+  closeEvent: () => void
 }
 
 export function useHomeFilters(): UseHomeFiltersResult {
   const [params, setParams] = useSearchParams()
+  const navigate = useNavigate()
 
   const filters = useMemo<HomeFilters>(
     () => ({
@@ -119,6 +127,40 @@ export function useHomeFilters(): UseHomeFiltersResult {
     setParams(next)
   }, [params, setParams])
 
+  /* Aprire una scheda aggiunge una tappa: così il tasto indietro la chiude.
+     Chiuderla col pulsante torna indietro di quella tappa invece di
+     aggiungerne un'altra, altrimenti per uscire dal sito servirebbero tanti
+     "indietro" quante schede si sono aperte. Chi arriva da un link condiviso
+     non ha nessuna tappa da annullare: lì si toglie e basta. */
+  const eventId = params.get('e') ?? ''
+  const pushed = useRef(false)
+
+  useEffect(() => {
+    if (!eventId) pushed.current = false
+  }, [eventId])
+
+  const openEvent = useCallback<UseHomeFiltersResult['openEvent']>(
+    (id, options) => {
+      const next = new URLSearchParams(params)
+      next.set('e', id)
+      const replace = options?.replace ?? false
+      setParams(next, { replace })
+      if (!replace) pushed.current = true
+    },
+    [params, setParams]
+  )
+
+  const closeEvent = useCallback(() => {
+    if (pushed.current) {
+      pushed.current = false
+      navigate(-1)
+      return
+    }
+    const next = new URLSearchParams(params)
+    next.delete('e')
+    setParams(next, { replace: true })
+  }, [navigate, params, setParams])
+
   const filtering =
     filters.query.trim().length > 0 ||
     filters.categories.length > 0 ||
@@ -126,5 +168,5 @@ export function useHomeFilters(): UseHomeFiltersResult {
     filters.place.length > 0 ||
     filters.sort !== 'prossimi'
 
-  return { filters, set, clear, filtering }
+  return { filters, set, clear, filtering, eventId, openEvent, closeEvent }
 }

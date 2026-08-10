@@ -594,3 +594,12 @@ summary,
   scrollbar-color: var(--color-ink-faint) transparent;
   scrollbar-width: thin;
 }
+
+/* Nastri che si scorrono col dito: la barra ruberebbe altezza a una striscia
+   alta due centimetri, e lì il gesto è già chiaro da solo. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

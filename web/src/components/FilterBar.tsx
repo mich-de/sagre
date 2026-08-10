@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Search, X, LayoutGrid, Rows3, MapPin, ArrowDownWideNarrow } from 'lucide-react'
 import { CATEGORIES } from '../lib/categorize'
 import { RANGES, SORTS, type CalendarViewMode, type SortKey, type TimeRange } from '../lib/filters'
@@ -20,6 +21,23 @@ interface FilterBarProps {
 export function FilterBar({ filters, onChange, onClear, places, filtering, shown, total }: FilterBarProps) {
   const { query, categories, range, from, to, place, sort, view } = filters
   const list = view === 'list'
+  const searchRef = useRef<HTMLInputElement | null>(null)
+
+  /* "/" porta il cursore nella ricerca, come su ogni sito che si sfoglia
+     davvero. Non mentre si sta già scrivendo da qualche parte, ovviamente. */
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return
+      const target = e.target as HTMLElement | null
+      const tag = target?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return
+      e.preventDefault()
+      searchRef.current?.focus()
+      searchRef.current?.select()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   return (
     <div className="ink-box-sm p-3 sm:p-4">
@@ -27,6 +45,7 @@ export function FilterBar({ filters, onChange, onClear, places, filtering, shown
         <div className="relative min-w-0 flex-1 basis-56">
           <Search size={14} className="absolute top-1/2 left-2.5 -translate-y-1/2 text-ink-faint" />
           <input
+            ref={searchRef}
             type="search"
             value={query}
             /* `replace`: un filtro che cambia a ogni tasto premuto non deve
@@ -37,6 +56,12 @@ export function FilterBar({ filters, onChange, onClear, places, filtering, shown
                pagina appena si tocca il campo e non la rimpicciolisce più. */
             className="w-full border-2 border-ink bg-paper py-2 pr-2 pl-8 text-base text-ink outline-none placeholder:text-ink-faint focus:bg-paper-hi focus:ring-2 focus:ring-vermiglio sm:py-1.5 sm:text-sm"
           />
+          {/* La scorciatoia si vede solo dove c'è una tastiera. */}
+          {!query && (
+            <kbd className="pointer-events-none absolute top-1/2 right-2 hidden -translate-y-1/2 border border-ink/30 bg-paper-2 px-1.5 py-px text-[0.62rem] font-bold text-ink-faint sm:block">
+              /
+            </kbd>
+          )}
         </div>
 
         <div className="flex shrink-0 items-center">

@@ -17,6 +17,10 @@ import {
   Globe,
   Ban,
   Megaphone,
+  Share2,
+  Check,
+  ArrowLeft,
+  ArrowRight,
 } from 'lucide-react'
 import type { CalendarEvent } from '../lib/googleCalendar'
 import { googleCalendarAddUrl } from '../lib/googleCalendar'
@@ -28,6 +32,12 @@ import { formatDateRange, formatDuration, eventStart, eventEndInclusive, isMulti
 interface EventModalProps {
   event: CalendarEvent
   onClose: () => void
+  /** Sfogliare il cartellone senza chiudere e riaprire: `null` quando la
+   *  scheda non fa parte di un elenco (o è la prima / l'ultima). */
+  onPrev?: (() => void) | null
+  onNext?: (() => void) | null
+  /** "3 di 27": dice quanto manca alla fine. */
+  position?: { index: number; total: number } | null
 }
 
 /* lucide non spedisce più i marchi: si usano icone generiche coerenti. */
@@ -42,11 +52,12 @@ const LINK_ICON: Record<LinkKind, typeof Globe> = {
 
 const SWIPE_MIN = 55
 
-export function EventModal({ event, onClose }: EventModalProps) {
+export function EventModal({ event, onClose, onPrev, onNext, position }: EventModalProps) {
   const [media, setMedia] = useState<EventMedia | null>(null)
   const [mediaLoading, setMediaLoading] = useState(true)
   const [zoomed, setZoomed] = useState(false)
   const [index, setIndex] = useState(0)
+  const [shared, setShared] = useState(false)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const touch = useRef<{ x: number; y: number; top: number } | null>(null)
   const swiped = useRef(false)
@@ -71,6 +82,11 @@ export function EventModal({ event, onClose }: EventModalProps) {
 
   useEffect(() => {
     let aborted = false
+    /* Passando alla sagra dopo, la pellicola riparte dalla prima foto: la
+       terza dell'evento di prima qui potrebbe non esistere nemmeno. */
+    setIndex(0)
+    setZoomed(false)
+    setShared(false)
     setMediaLoading(true)
     getEventMedia(event.id)
       .then((m) => {
@@ -167,6 +183,25 @@ export function EventModal({ event, onClose }: EventModalProps) {
       return
     }
     if (dy > 90 && from.top <= 0 && Math.abs(dy) > Math.abs(dx) * 1.5) onClose()
+  }
+
+  /* L'indirizzo porta già l'evento aperto (`?e=`), quindi si condivide quello
+     che si ha sotto gli occhi. Sul telefono si apre il foglio di sistema —
+     WhatsApp, dove finiscono davvero le sagre; altrove si copia e basta. */
+  async function share() {
+    const url = window.location.href
+    const data = { title: event.title, text: `${event.title} — ${formatDateRange(event)}`, url }
+    try {
+      if (navigator.share) {
+        await navigator.share(data)
+        return
+      }
+      await navigator.clipboard.writeText(url)
+      setShared(true)
+      window.setTimeout(() => setShared(false), 2200)
+    } catch {
+      /* Foglio chiuso a mano o appunti negati: non c'è niente da dire. */
+    }
   }
 
   function openZoom() {
@@ -418,7 +453,43 @@ export function EventModal({ event, onClose }: EventModalProps) {
                 <ExternalLink size={15} />
                 Su Google
               </a>
+              <button
+                type="button"
+                onClick={share}
+                className="stamp-btn flex items-center justify-center gap-2 bg-paper-hi px-4 py-3 text-[0.68rem] font-bold tracking-[0.12em] uppercase text-ink sm:justify-start sm:py-2"
+              >
+                {shared ? <Check size={15} className="text-oliva" /> : <Share2 size={15} />}
+                {shared ? 'Link copiato' : 'Condividi'}
+              </button>
             </div>
+
+            {/* Sfogliare il cartellone senza uscire dalla scheda. Non sulle
+                frecce della tastiera: lì ci scorrono già le locandine. */}
+            {position && position.total > 1 && (
+              <div className="mt-1 flex items-stretch border-2 border-ink bg-paper-2">
+                <button
+                  type="button"
+                  onClick={() => onPrev?.()}
+                  disabled={!onPrev}
+                  className="flex flex-1 items-center justify-center gap-2 py-3.5 text-[0.62rem] font-bold tracking-[0.12em] uppercase text-ink transition-colors hover:bg-paper-3 disabled:text-ink-faint disabled:hover:bg-transparent"
+                >
+                  <ArrowLeft size={14} />
+                  Prima
+                </button>
+                <span className="flex shrink-0 items-center border-x-2 border-ink px-3 text-[0.62rem] font-bold tracking-[0.12em] uppercase text-ink-soft">
+                  {position.index + 1} di {position.total}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onNext?.()}
+                  disabled={!onNext}
+                  className="flex flex-1 items-center justify-center gap-2 py-3.5 text-[0.62rem] font-bold tracking-[0.12em] uppercase text-ink transition-colors hover:bg-paper-3 disabled:text-ink-faint disabled:hover:bg-transparent"
+                >
+                  Dopo
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
