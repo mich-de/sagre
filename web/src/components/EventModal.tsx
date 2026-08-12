@@ -21,12 +21,14 @@ import {
   Check,
   ArrowLeft,
   ArrowRight,
+  CalendarArrowDown,
 } from 'lucide-react'
 import type { CalendarEvent } from '../lib/googleCalendar'
 import { googleCalendarAddUrl } from '../lib/googleCalendar'
 import { getEventMedia, EMPTY_EXTRAS, type EventMedia } from '../lib/posters'
 import { linkKind, type EventLink, type LinkKind } from '../lib/links'
 import { categorize } from '../lib/categorize'
+import { downloadIcs, icsFileName } from '../lib/ics'
 import { WeatherStrip } from './WeatherStrip'
 import { formatDateRange, formatDuration, eventStart, eventEndInclusive, isMultiDay, isOngoing } from '../lib/dates'
 
@@ -438,8 +440,9 @@ export function EventModal({ event, onClose, onPrev, onNext, position }: EventMo
               </div>
             )}
 
-            {/* Sul telefono le due azioni prendono tutta la riga: bersagli
-                pieni invece di due pastiglie da centrare col pollice. */}
+            {/* Sul telefono le azioni prendono tutta la riga: bersagli pieni
+                invece di pastiglie da centrare col pollice. Le due minori si
+                dividono una riga sola, così la scheda non diventa una scala. */}
             <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap">
               <a
                 href={googleCalendarAddUrl(event)}
@@ -450,6 +453,28 @@ export function EventModal({ event, onClose, onPrev, onNext, position }: EventMo
                 <CalendarPlus size={15} />
                 Segna in agenda
               </a>
+              {/* `sm:contents`: sul telefono sono due mezze colonne, sul
+                  monitor tornano in fila con le altre come se non ci fosse. */}
+              <div className="grid grid-cols-2 gap-3 sm:contents">
+                {/* Chi ha l'iPhone o Outlook sul pulsante di Google non ci
+                    clicca: il file lo aprono tutti, senza account. */}
+                <button
+                  type="button"
+                  onClick={() => downloadIcs([event], event.title, icsFileName(event.title))}
+                  className="stamp-btn flex items-center justify-center gap-2 bg-paper-hi px-4 py-3 text-[0.68rem] font-bold tracking-[0.12em] uppercase text-ink sm:justify-start sm:py-2"
+                >
+                  <CalendarArrowDown size={15} />
+                  Scarica .ics
+                </button>
+                <button
+                  type="button"
+                  onClick={share}
+                  className="stamp-btn flex items-center justify-center gap-2 bg-paper-hi px-4 py-3 text-[0.68rem] font-bold tracking-[0.12em] uppercase text-ink sm:justify-start sm:py-2"
+                >
+                  {shared ? <Check size={15} className="text-oliva" /> : <Share2 size={15} />}
+                  {shared ? 'Copiato' : 'Condividi'}
+                </button>
+              </div>
               <a
                 href={event.htmlLink}
                 target="_blank"
@@ -459,14 +484,6 @@ export function EventModal({ event, onClose, onPrev, onNext, position }: EventMo
                 <ExternalLink size={15} />
                 Su Google
               </a>
-              <button
-                type="button"
-                onClick={share}
-                className="stamp-btn flex items-center justify-center gap-2 bg-paper-hi px-4 py-3 text-[0.68rem] font-bold tracking-[0.12em] uppercase text-ink sm:justify-start sm:py-2"
-              >
-                {shared ? <Check size={15} className="text-oliva" /> : <Share2 size={15} />}
-                {shared ? 'Link copiato' : 'Condividi'}
-              </button>
             </div>
 
             {/* Sfogliare il cartellone senza uscire dalla scheda. Non sulle
