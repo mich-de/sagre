@@ -82,7 +82,7 @@ export function MonthRail({ months }: MonthRailProps) {
   return (
     <div
       ref={railRef}
-      className="sticky top-[calc(var(--header-h)+0.25rem)] z-20 -mx-3 mb-4 border-y-2 border-ink bg-paper-hi sm:-mx-5"
+      className="no-print sticky top-[calc(var(--header-h)+0.25rem)] z-20 -mx-3 mb-4 border-y-2 border-ink bg-paper-hi sm:-mx-5"
     >
       <div
         ref={scrollerRef}

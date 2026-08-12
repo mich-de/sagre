@@ -1,5 +1,14 @@
 import { useCallback, useMemo, type ReactNode } from 'react'
-import { RefreshCw, AlertTriangle, MapPin, ArrowRight, Star, CalendarX } from 'lucide-react'
+import {
+  RefreshCw,
+  AlertTriangle,
+  MapPin,
+  ArrowRight,
+  Star,
+  CalendarX,
+  Printer,
+  CalendarArrowDown,
+} from 'lucide-react'
 import { useCalendarEvents } from '../hooks/useCalendarEvents'
 import { useEventExtras } from '../hooks/useEventExtras'
 import { useHomeFilters } from '../hooks/useHomeFilters'
@@ -12,6 +21,8 @@ import { FilterBar } from '../components/FilterBar'
 import { MonthRail } from '../components/MonthRail'
 import { NoResults } from '../components/NoResults'
 import { BackToTop } from '../components/BackToTop'
+import { PrintMasthead } from '../components/PrintMasthead'
+import { downloadIcs, icsFileName } from '../lib/ics'
 import { categorize, CATEGORIES } from '../lib/categorize'
 import { inTimeRange, sortEvents } from '../lib/filters'
 import { collectPlaces, inPlace } from '../lib/places'
@@ -103,8 +114,15 @@ export function Home() {
 
   return (
     <main className="page-x mx-auto max-w-5xl pb-[max(4rem,env(safe-area-inset-bottom))]">
+      {/* Testata che compare solo sulla carta: dice che foglio è, di quando è
+          e dove sta l'originale che si aggiorna da solo. */}
+      <PrintMasthead filters={filters} shown={filtered.length} total={events.length} />
+
       {/* ------------------------------------------------------ manifesto -- */}
-      <section className="relative animate-ink-rise pt-10 pb-8">
+      {/* Sul foglio la testata la fa `PrintMasthead`: questa è tutta roba da
+          dito e da schermo, e il titolo cubitale due volte sarebbe uno spreco
+          di mezza pagina. */}
+      <section className="no-print relative animate-ink-rise pt-10 pb-8">
         <div className="halftone pointer-events-none absolute -top-2 right-0 h-40 w-40 sm:h-56 sm:w-56" aria-hidden />
 
         <p className="eyebrow">Calendario popolare · Edizione locale</p>
@@ -146,7 +164,12 @@ export function Home() {
 
       {/* ------------------------------------------------- oggi e domani -- */}
       {!loading && (
-        <section style={{ animationDelay: '60ms' }} className="mb-8 grid animate-ink-rise gap-4 sm:grid-cols-2">
+        /* Un foglio appeso al bar ci resta due settimane: "oggi" e "domani"
+           sono le prime due cose che diventano false. */
+        <section
+          style={{ animationDelay: '60ms' }}
+          className="no-print mb-8 grid animate-ink-rise gap-4 sm:grid-cols-2"
+        >
           <DayPanel title="Oggi" events={today} extrasOf={extrasOf} onSelect={setSelected} accent />
           <DayPanel title="Domani" events={tomorrow} extrasOf={extrasOf} onSelect={setSelected} />
         </section>
@@ -157,7 +180,9 @@ export function Home() {
         <button
           onClick={() => setSelected(headline)}
           style={{ animationDelay: '90ms' }}
-          className="ink-box group mb-8 flex w-full animate-ink-rise items-stretch overflow-hidden text-left transition-transform hover:translate-x-[1px] hover:translate-y-[1px]"
+          /* Anche "in arrivo" invecchia, e la festa in testa è comunque la
+             prima riga del cartellone qui sotto. */
+          className="ink-box group no-print mb-8 flex w-full animate-ink-rise items-stretch overflow-hidden text-left transition-transform hover:translate-x-[1px] hover:translate-y-[1px]"
         >
           <span
             className="w-2 shrink-0"
@@ -211,7 +236,7 @@ export function Home() {
       {/* ------------------------------------------------------ cartellone -- */}
       <section style={{ animationDelay: '160ms' }} className="animate-ink-rise">
         {!loading && (
-          <div className="mb-4">
+          <div className="no-print mb-4">
             <FilterBar
               filters={filters}
               onChange={set}
@@ -271,6 +296,42 @@ export function Home() {
           ))}
         </ul>
       </section>
+
+      {/* ------------------------------------------------ portare via -- */}
+      {/* Il cartellone non finisce nel telefono di chi l'ha guardato: o si
+          appende al muro, o si infila nell'agenda. Le due cose che il sito
+          non sa fare da solo le fanno la stampante e un file .ics. */}
+      {!loading && filtered.length > 0 && (
+        <section style={{ animationDelay: '300ms' }} className="no-print mt-8 animate-ink-rise">
+          <p className="eyebrow">Portalo via</p>
+          <div className="mt-3 flex flex-wrap gap-2.5">
+            <button
+              onClick={() => window.print()}
+              className="stamp-btn tap tap-grow flex items-center gap-2 bg-paper-hi px-3.5 py-2.5 text-[0.65rem] font-bold tracking-[0.12em] uppercase text-ink"
+            >
+              <Printer size={14} />
+              Stampa il cartellone
+            </button>
+            <button
+              onClick={() =>
+                downloadIcs(
+                  filtered,
+                  place ? `Sagre a ${place}` : 'Eventi e Sagre',
+                  icsFileName(place ? `sagre-${place}` : 'cartellone-sagre')
+                )
+              }
+              className="stamp-btn tap tap-grow flex items-center gap-2 bg-paper-hi px-3.5 py-2.5 text-[0.65rem] font-bold tracking-[0.12em] uppercase text-ink"
+            >
+              <CalendarArrowDown size={14} />
+              Scarica in agenda
+            </button>
+          </div>
+          <p className="mt-2 text-[0.65rem] text-ink-faint">
+            Sul foglio finisce quel che stai guardando adesso, filtri compresi.
+            {' '}Il file .ics lo aprono iPhone, Outlook e Google Calendar.
+          </p>
+        </section>
+      )}
 
       <footer className="mt-12 border-t-2 border-ink pt-4">
         <p className="eyebrow">Stampato in proprio · Le locandine sono caricate dall'organizzatore</p>

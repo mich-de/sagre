@@ -603,3 +603,103 @@ summary,
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* =========================================================================
+   ALLA STAMPANTE
+   Il sito finge di essere un manifesto affisso al muro: sulla carta smette di
+   fingere. Si toglie tutto quello che si tocca — testata, filtri, pulsanti —
+   e resta il cartellone, in colonna, come si legge davanti al bar.
+   ========================================================================= */
+
+@media print {
+  @page {
+    margin: 14mm;
+  }
+
+  /* Fondo bianco: la carta ingiallita è già carta, ridipingerla vuol dire
+     scaricare una cartuccia per pagina. I colori piccoli invece restano —
+     le tacche di categoria senza colore non dicono più niente. */
+  html,
+  body {
+    background: #fff !important;
+    background-image: none !important;
+    color: #000;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Niente di quel che si tocca, e niente di quel che serve solo a muoversi
+     nella pagina: su un foglio non si filtra, non si sfoglia, non si torna
+     in cima. */
+  header,
+  .no-print,
+  [role="dialog"],
+  [data-print="hide"] {
+    display: none !important;
+  }
+
+  /* L'ombra fuori registro è il vezzo dello schermo: in stampa diventa un
+     rettangolo nero pieno da mezzo centimetro, su ogni scheda. */
+  * {
+    box-shadow: none !important;
+  }
+
+  /* La carta crema non sta solo nei riquadri: senza questa riga ogni scheda
+     del cartellone si porta dietro il suo fondo, e il foglio esce velato di
+     toner da cima a fondo. Le tacche di categoria hanno il colore scritto
+     nell'attributo `style`, quindi restano. */
+  .ink-box,
+  .ink-box-sm,
+  .stamp-btn,
+  [class*="bg-paper"] {
+    background-color: #fff !important;
+  }
+  .ink-box,
+  .ink-box-sm {
+    border-width: 1.5px !important;
+  }
+
+  /* Le animazioni d'ingresso lasciano gli elementi trasparenti se la stampa
+     parte prima che finiscano: sul foglio uscirebbero mezzi bianchi. */
+  .animate-ink-rise,
+  .animate-stamp-in,
+  .animate-sheet-up {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  /* Una sagra non si spezza tra due fogli. */
+  li,
+  .ink-box-sm,
+  .fc-daygrid-day {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Il calendario a griglia ci sta in un foglio solo se rimpicciolisce, e
+     senza barre di scorrimento che sullo schermo nascondono metà mese. */
+  .fc {
+    font-size: 8pt;
+  }
+  .fc .fc-scroller {
+    overflow: visible !important;
+    height: auto !important;
+  }
+  .fc .fc-daygrid-body,
+  .fc table {
+    width: 100% !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  a {
+    text-decoration: none;
+    color: #000;
+  }
+}
