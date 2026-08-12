@@ -27,6 +27,7 @@ import { googleCalendarAddUrl } from '../lib/googleCalendar'
 import { getEventMedia, EMPTY_EXTRAS, type EventMedia } from '../lib/posters'
 import { linkKind, type EventLink, type LinkKind } from '../lib/links'
 import { categorize } from '../lib/categorize'
+import { WeatherStrip } from './WeatherStrip'
 import { formatDateRange, formatDuration, eventStart, eventEndInclusive, isMultiDay, isOngoing } from '../lib/dates'
 
 interface EventModalProps {
@@ -384,6 +385,11 @@ export function EventModal({ event, onClose, onPrev, onNext, position }: EventMo
                 <span>{event.location}</span>
               </a>
             )}
+
+            {/* Il tempo sta sotto il luogo perché è lì che si decide se
+                andarci: una sagra in piazza con l'acqua è un'altra cosa. Sulle
+                feste annullate non serve — non ci va più nessuno comunque. */}
+            {!cancelled && <WeatherStrip event={event} />}
 
             {/* Linea di strappo del biglietto. */}
             <div className="flex items-center gap-2 py-1 text-ink-faint">
