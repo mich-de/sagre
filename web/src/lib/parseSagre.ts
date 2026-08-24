@@ -4,7 +4,8 @@ import { daysBetween, isoDay, startOfDay } from './dates'
  * Le sagre arrivano in blocco, e non in forma di modulo: un elenco copiato da
  * un volantino, da un messaggio, dal foglio del comune. Una riga per festa, le
  * date scritte come le scrive la gente — "dal 12 al 14 agosto", "12-14 ago",
- * "30 luglio - 2 agosto", "12/08/2026".
+ * "30 luglio - 2 agosto", "12/08/2026" — e l'orario dove capita nella riga,
+ * "ore 20:30", "dalle 19 alle 24".
  *
  * Questo modulo non scrive niente e non indovina niente in silenzio: traduce
  * ogni riga in una proposta, e quando non ci riesce lo dice riga per riga. La
@@ -20,6 +21,15 @@ export interface ParsedSagra {
   startDate: string
   /** Ultimo giorno di festa, come in `EventDraft`: non il giorno dopo. */
   endDate: string
+  /** Nella riga non c'era nessun orario: la festa dura tutto il giorno. */
+  allDay: boolean
+  /** 'HH:MM' come stava scritto nella riga, stringa vuota se non c'era. Qui si
+   *  riporta solo quel che il testo diceva: le caselle vuote le riempie chi
+   *  guarda l'anteprima, con l'orario di comodo del modulo. */
+  startTime: string
+  /** 'HH:MM'. Vuota anche quando la riga dice a che ora si apre e non a che ora
+   *  si chiude — succede spesso, «ore 19» e basta. */
+  endTime: string
   /** Che cosa non torna in questa riga, in italiano. `null` se è a posto. */
   problem: string | null
   /** La festa è già passata. Non è un errore — si può star sistemando un
@@ -169,6 +179,103 @@ export function findDates(text: string, year: number): Found | null {
   return null
 }
 
+/* --------------------------------------------------------------- l'ora -- */
+
+/** Ora e minuti: "19", "19:30", "19.30". */
+const HM = '(\\d{1,2})(?:[:.](\\d{2}))?'
+
+/** Le parole che annunciano un'ora. Il confine di parola serve soprattutto alla
+ *  "h": senza, la troverebbe in mezzo a "chiesa". */
+const AT = "\\b(?:dalle\\s+ore|alle\\s+ore|dalle|alle|ore|dall'|h\\.?)\\s*"
+
+/** Da che ora a che ora. */
+const SPAN = '\\s*(?:-|–|—|\\/|alle\\s+ore|alle|a)\\s*'
+
+/** Con la parola davanti: "dalle 19 alle 23", "ore 19.30 - 23.30". */
+const SAID_RANGE = new RegExp(`${AT}${HM}${SPAN}${HM}`, 'i')
+/** Senza parola davanti servono i due punti: col punto e basta "12-14 agosto"
+ *  e "12.08-14.08" passerebbero per orari, e la festa perderebbe le date. */
+const COLON_RANGE = /(\d{1,2}):(\d{2})\s*(?:-|–|—|\/|alle|a)\s*(\d{1,2}):(\d{2})/
+/** Solo l'apertura: "ore 19", "alle 20:30", "h 21". */
+const SAID_ONE = new RegExp(`${AT}${HM}`, 'i')
+/** Solo l'apertura, coi due punti: "20:30". */
+const COLON_ONE = /(\d{1,2}):(\d{2})/
+
+const pad2 = (n: number) => String(n).padStart(2, '0')
+
+/** 'HH:MM' se quell'ora esiste davvero. "dalle 30 alle 40" non è un orario, e
+ *  non deve diventarlo per forza: meglio una sagra di tutto il giorno che una
+ *  che apre alle trenta. */
+function clockTime(hour: string, minute: string | undefined): string | null {
+  const h = Number(hour)
+  const m = minute === undefined ? 0 : Number(minute)
+  if (!Number.isInteger(h) || h < 0 || h > 24) return null
+  if (!Number.isInteger(m) || m < 0 || m > 59) return null
+  /* "dalle 19 alle 24" è come si scrive mezzanotte su mezzo volantino d'Italia,
+     e le 24 su un orologio non esistono. Diventa 23:59 e non 00:00 del giorno
+     dopo: spostare la fine al giorno dopo cambierebbe la durata della festa, e
+     un minuto in meno non lo nota nessuno. */
+  if (h === 24) return m === 0 ? '23:59' : null
+  return `${pad2(h)}:${pad2(m)}`
+}
+
+export interface FoundTime {
+  /** 'HH:MM' */
+  start: string
+  /** 'HH:MM', vuoto quando la riga dice solo a che ora si apre. */
+  end: string
+  /** Dove stava l'orario nella riga: si ritaglia prima di cercare le date. */
+  from: number
+  to: number
+}
+
+/** Cerca un orario dentro una riga. Prima le due forme complete, perché "dalle
+ *  19 alle 23" contiene anche "dalle 19", e a cominciare dalla forma corta la
+ *  chiusura si perderebbe. */
+export function findTime(text: string): FoundTime | null {
+  for (const re of [SAID_RANGE, COLON_RANGE]) {
+    const m = re.exec(text)
+    if (!m) continue
+    const start = clockTime(m[1], m[2])
+    const end = clockTime(m[3], m[4])
+    if (start && end) return { start, end, from: m.index, to: m.index + m[0].length }
+  }
+  for (const re of [SAID_ONE, COLON_ONE]) {
+    const m = re.exec(text)
+    if (!m) continue
+    const start = clockTime(m[1], m[2])
+    if (start) return { start, end: '', from: m.index, to: m.index + m[0].length }
+  }
+  return null
+}
+
+/** Il testo con un pezzo tolto in mezzo. Lo spazio al posto del ritaglio serve
+ *  a non incollare fra loro due parole che stavano ai due lati della data. */
+function cutOut(text: string, from: number, to: number): string {
+  return `${text.slice(0, from)} ${text.slice(to)}`
+}
+
+/** Cerca l'orario nei pezzi di riga che non sono né il titolo né la data, e
+ *  restituisce quei pezzi ripuliti: il primo in cui l'orario si trova lo perde,
+ *  altrimenti «dalle 19 alle 24» finirebbe nel nome del paese.
+ *
+ *  Il nome della sagra resta fuori di proposito. Quando chi incolla mette il
+ *  separatore sta dicendo «questo è il titolo», ed è testo scritto a mano:
+ *  storpiare «Palio h 21» per portarne via un'ora è peggio che lasciare l'ora
+ *  lì, dove si vede nell'anteprima e si corregge in due secondi. Senza
+ *  separatori invece i confini non ci sono, e tocca cercare anche prima della
+ *  data. */
+function pluckTime(parts: string[]): { time: FoundTime | null; parts: string[] } {
+  for (const [i, part] of parts.entries()) {
+    const time = findTime(part)
+    if (!time) continue
+    const kept = [...parts]
+    kept[i] = cutOut(part, time.from, time.to).trim()
+    return { time, parts: kept }
+  }
+  return { time: null, parts }
+}
+
 /** Toglie le parole di servizio rimaste attaccate al titolo o al paese dopo
  *  aver ritagliato la data: "Sagra del cinghiale, dal" non è un titolo. */
 function tidy(value: string): string {
@@ -189,31 +296,57 @@ export function parseSagraLine(raw: string, year: number, now: Date = new Date()
      delle sezioni ("### Agosto"), e non sono sagre. */
   if (!line || line.startsWith('#')) return null
 
-  const empty = { raw: line, title: '', location: '', startDate: '', endDate: '', past: false }
+  const empty = {
+    raw: line,
+    title: '',
+    location: '',
+    startDate: '',
+    endDate: '',
+    allDay: true,
+    startTime: '',
+    endTime: '',
+    past: false,
+  }
   const fields = line.split(SEP).map((f) => f.trim())
 
-  let title: string
-  let dateText: string
-  let location: string
-
-  if (fields.length >= 2) {
-    title = fields[0]
-    dateText = fields[1]
-    location = fields.slice(2).join(', ').trim()
-  } else {
+  if (fields.length < 2) {
     /* Nessun separatore: la data si cerca dentro la riga, e quel che sta prima
        è il nome, quel che sta dopo il paese. Meglio di un rifiuto secco. */
     const found = findDates(line, year)
     if (!found) return { ...empty, problem: 'Non ho trovato la data.' }
-    title = tidy(line.slice(0, found.from))
-    location = tidy(line.slice(found.to))
-    return finish({ raw: line, title, location, found, now })
+    const { time, parts } = pluckTime([line.slice(0, found.from), line.slice(found.to)])
+    return finish({ raw: line, title: tidy(parts[0]), location: tidy(parts[1]), found, time, now })
   }
 
+  const title = fields[0]
+  const dateText = fields[1]
   if (!title) return { ...empty, problem: 'Manca il nome della sagra.' }
+
   const found = findDates(dateText, year)
-  if (!found) return { ...empty, title, location, problem: `Non ho capito la data «${dateText}».` }
-  return finish({ raw: line, title, location, found, now })
+  if (!found) {
+    /* L'orario si tiene anche quando la data non si è capita: è lavoro già
+       fatto, e chi sistema la riga a mano non deve rifarlo. */
+    const { time, parts } = pluckTime(fields.slice(1))
+    return {
+      ...empty,
+      title,
+      location: parts.slice(1).filter(Boolean).join(', '),
+      allDay: time === null,
+      startTime: time?.start ?? '',
+      endTime: time?.end ?? '',
+      problem: `Non ho capito la data «${dateText}».`,
+    }
+  }
+
+  /* La data si prende per prima, l'orario si cerca in quel che resta. Fra i due
+     è la data quella che non si può sbagliare in silenzio, e "19.30" e "12.08"
+     si scrivono allo stesso modo: cercando l'ora per prima, una riga come
+     "dalle 12 alle 14 agosto" perderebbe il 12 senza dirlo a nessuno. */
+  const { time, parts } = pluckTime([cutOut(dateText, found.from, found.to), ...fields.slice(2)])
+  /* `filter`: l'orario può stare in un campo suo, e ritagliandolo lascia un
+     campo vuoto che altrimenti diventerebbe una virgola nel nome del paese. */
+  const location = parts.slice(1).filter(Boolean).join(', ').trim()
+  return finish({ raw: line, title, location, found, time, now })
 }
 
 function finish({
@@ -221,12 +354,14 @@ function finish({
   title,
   location,
   found,
+  time,
   now,
 }: {
   raw: string
   title: string
   location: string
   found: Found
+  time: FoundTime | null
   now: Date
 }): ParsedSagra {
   let { start, end } = found
@@ -248,6 +383,9 @@ function finish({
     location,
     startDate,
     endDate,
+    allDay: time === null,
+    startTime: time?.start ?? '',
+    endTime: time?.end ?? '',
     past: end < today,
     problem: !title.trim()
       ? 'Manca il nome della sagra.'

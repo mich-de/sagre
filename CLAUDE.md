@@ -31,6 +31,10 @@ npm run dev       # http://localhost:5173/sagre/  e  /sagre/admin
   sempre per `eventStart()` / `parseEventDate()` di `lib/dates.ts`.
 - **La fine degli eventi tutto il giorno è esclusiva** (convenzione di Google Calendar). `toBody`
   aggiunge un giorno in scrittura; per mostrarla si usa `eventEndInclusive()`.
+- **Nel testo incollato le date si leggono prima degli orari.** `19.30` e `12.08` si scrivono allo
+  stesso modo: cercando l'ora per prima, «dalle 12 alle 14 agosto» perde le date **in silenzio**.
+  `findDates` si prende il suo pezzo, `findTime` cerca in quel che resta — e se la data non c'è lo
+  dice. L'orario non si cerca mai dentro il **nome** della sagra, che è testo scritto a mano.
 - **La logica non sta nei componenti.** Filtri, date, categorie, luoghi, ICS, meteo e locandine
   vivono in `lib/`, così barra dei filtri, home e stampa condividono lo stesso comportamento.
 - **Firestore soltanto** per le schede: `posters/{eventId}` tiene la miniatura, le immagini piene
@@ -57,7 +61,7 @@ npm run dev       # http://localhost:5173/sagre/  e  /sagre/admin
 | `posters.ts` | schede su Firestore: locandine, collegamenti, nota, programma | `listExtras`, `saveExtras`, `copyExtras`, `runBulk`, `hasPoster`, `posterRef`, `EventExtras`, `EventMedia` |
 | `programma.ts` | il programma legato ai giorni veri della festa | `programmaRows`, `orphanRows`, `cleanProgramma`, `dayLabel`, `todayRow` |
 | `nextYear.ts` | la stessa sagra l'anno prossimo | `nextYearShift` (modi `'data'` e `'giorno'`), `shiftDraft` |
-| `parseSagre.ts` | righe incollate a mano → bozze di evento | `parseSagreLines`, `parseSagraLine`, `findDates`, `spanDays` |
+| `parseSagre.ts` | righe incollate a mano → bozze di evento, date **e orari** | `parseSagreLines`, `parseSagraLine`, `findDates`, `findTime`, `spanDays` |
 | `ics.ts` | file .ics (RFC 5545) e abbonamento al calendario | `buildIcs`, `downloadIcs`, `icsFileName`, `eventPageUrl`, `subscriptionUrl`, `webcalUrl` |
 | `weather.ts` | previsioni Open-Meteo, senza chiave | `geocode` (**cache coordinate in `localStorage`, condivisa con la mappa**), `forecast`, `skyOf`, `isWet`, `forecastableDays` |
 | `links.ts` | i collegamenti dell'organizzatore | riconoscimento e normalizzazione |
@@ -96,5 +100,9 @@ I valori d'ambiente stanno in `web/.env`, mai nel repo, e nei secret di GitHub A
   seguire la strada di Leaflet (`React.lazy`).
 - Vulnerabilità: nessuna. `npm audit` è pulito dal 24 agosto 2026 (`nanoid` risolta con
   `npm audit fix`, senza effetti sul bundle prodotto).
+- Verifica a mano da fare in «Aggiungi tante sagre insieme»: righe vere con l'ora incollate dentro,
+  l'anteprima, la barra «Applica a tutte» e quel che poi finisce davvero su Google Calendar.
 - Verifiche a mano ancora da fare sul dispositivo: abbonamento al cartellone aperto da telefono,
-  mappa che centra i paesi veri e filtra al tocco.
+  mappa che centra i paesi veri e filtra al tocco. Da fare ora su
+  <https://mich-de.github.io/sagre/>, non più su `npm run dev`: dal 24 agosto 2026 la mappa e
+  l'abbonamento sono in linea (`main` → `deploy-web.yml` → GitHub Pages).
