@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type ReactNode } from 'react'
+import { lazy, Suspense, useCallback, useMemo, useState, type ReactNode } from 'react'
 import {
   RefreshCw,
   AlertTriangle,
@@ -8,6 +8,9 @@ import {
   CalendarX,
   Printer,
   CalendarArrowDown,
+  CalendarCheck,
+  Copy,
+  Check,
 } from 'lucide-react'
 import { useCalendarEvents } from '../hooks/useCalendarEvents'
 import { useEventExtras } from '../hooks/useEventExtras'
@@ -22,9 +25,9 @@ import { MonthRail } from '../components/MonthRail'
 import { NoResults } from '../components/NoResults'
 import { BackToTop } from '../components/BackToTop'
 import { PrintMasthead } from '../components/PrintMasthead'
-import { downloadIcs, icsFileName } from '../lib/ics'
+import { downloadIcs, icsFileName, subscriptionUrl, webcalUrl } from '../lib/ics'
 import { categorize, CATEGORIES } from '../lib/categorize'
-import { inTimeRange, sortEvents } from '../lib/filters'
+import { inTimeRange, sortEvents, toggleCategory } from '../lib/filters'
 import { collectPlaces, inPlace } from '../lib/places'
 import {
   addDays,
@@ -35,9 +38,14 @@ import {
   formatDuration,
   isMultiDay,
   occursOn,
+  weekendWindow,
 } from '../lib/dates'
 import type { CalendarEvent } from '../lib/googleCalendar'
 import type { EventExtras } from '../lib/posters'
+
+/* Leaflet e il suo foglio di stile pesano più di tutto il resto del cartellone:
+   chi resta su griglia ed elenco non se li scarica affatto. */
+const PlacesMap = lazy(() => import('../components/PlacesMap').then((m) => ({ default: m.PlacesMap })))
 
 export function Home() {
   const { events, loading, error, reload } = useCalendarEvents()
@@ -65,12 +73,13 @@ export function Home() {
         return false
       }
       if (place && !inPlace(event, place)) return false
-      /* La finestra temporale vale solo per l'elenco: nella griglia il mese
-         che si sta guardando è già la finestra. */
-      if (view === 'list' && !inTimeRange(event, range, from, to)) return false
+      /* La finestra temporale non vale nella griglia: lì il mese che si sta
+         guardando è già la finestra. Sulla mappa invece serve, o i pallini
+         raccontano anche le sagre di tre anni fa. */
+      if (view !== 'grid' && !inTimeRange(event, range, from, to)) return false
       return true
     })
-    return view === 'list' ? sortEvents(kept, sort) : kept
+    return view === 'grid' ? kept : sortEvents(kept, sort)
   }, [events, extrasOf, categories, query, place, range, from, to, sort, view])
 
   /* Indice dei mesi: solo dove i mesi fanno ancora da capitolo, cioè
@@ -96,6 +105,18 @@ export function Home() {
   const today = useMemo(() => events.filter((e) => occursOn(e, new Date())), [events])
   const tomorrow = useMemo(() => events.filter((e) => occursOn(e, addDays(new Date(), 1))), [events])
 
+  /* Il fine settimana in arrivo, o quello in corso se ci siamo già dentro. Chi
+     guarda il cartellone di giovedì sta decidendo cosa fare sabato: è la
+     domanda più frequente, e non deve costare tre tocchi di filtri. */
+  const weekend = useMemo(() => {
+    const window = weekendWindow()
+    const list = sortEvents(
+      events.filter((e) => inTimeRange(e, 'weekend', '', '')),
+      'prossimi'
+    )
+    return { ...window, events: list }
+  }, [events])
+
   /* In cima va la festa segnalata dall'organizzatore; se non ce n'è, la
      prima in arrivo. Una sagra già iniziata ma non finita resta in testa. */
   const upcoming = useMemo(
@@ -111,6 +132,22 @@ export function Home() {
   )
   const headlineFeatured = headline ? extrasOf(headline.id).featured : false
   const headlineOngoing = headline ? isOngoing(headline) : false
+
+  /* Abbonamento al calendario condiviso: `null` se il calendario non è
+     configurato, e in quel caso i pulsanti non compaiono affatto. */
+  const feed = subscriptionUrl()
+  const webcal = webcalUrl()
+  const [copied, setCopied] = useState<'ok' | 'fail' | null>(null)
+
+  async function copyFeed() {
+    if (!feed) return
+    try {
+      await navigator.clipboard.writeText(feed)
+      setCopied('ok')
+    } catch {
+      setCopied('fail')
+    }
+  }
 
   return (
     <main className="page-x mx-auto max-w-5xl pb-[max(4rem,env(safe-area-inset-bottom))]">
@@ -168,10 +205,33 @@ export function Home() {
            sono le prime due cose che diventano false. */
         <section
           style={{ animationDelay: '60ms' }}
-          className="no-print mb-8 grid animate-ink-rise gap-4 sm:grid-cols-2"
+          className="no-print mb-8 grid animate-ink-rise gap-4 sm:grid-cols-2 lg:grid-cols-3"
         >
-          <DayPanel title="Oggi" events={today} extrasOf={extrasOf} onSelect={setSelected} accent />
-          <DayPanel title="Domani" events={tomorrow} extrasOf={extrasOf} onSelect={setSelected} />
+          <DayPanel
+            title="Oggi"
+            when={dayLabel(new Date())}
+            events={today}
+            extrasOf={extrasOf}
+            onSelect={setSelected}
+            accent
+          />
+          <DayPanel
+            title="Domani"
+            when={dayLabel(addDays(new Date(), 1))}
+            events={tomorrow}
+            extrasOf={extrasOf}
+            onSelect={setSelected}
+          />
+          <DayPanel
+            title="Fine settimana"
+            when={weekendLabel(weekend.from, weekend.to)}
+            events={weekend.events}
+            extrasOf={extrasOf}
+            onSelect={setSelected}
+            /* Sul telefono i pannelli stanno uno sotto l'altro e questo è il
+               terzo: la griglia lo affianca solo dove c'è spazio davvero. */
+            onMore={() => set({ range: 'weekend', view: 'list' })}
+          />
         </section>
       )}
 
@@ -268,6 +328,32 @@ export function Home() {
           </div>
         ) : view === 'grid' ? (
           <CalendarView events={filtered} extrasOf={extrasOf} onSelectEvent={setSelected} />
+        ) : view === 'map' ? (
+          <>
+            <Suspense
+              fallback={
+                <div className="ink-box no-print p-4">
+                  <div className="h-[58vh] max-h-[34rem] min-h-[18rem] animate-pulse bg-paper-2" />
+                  <p className="mt-3 text-[0.62rem] tracking-[0.1em] uppercase text-ink-faint">
+                    Sto aprendo la mappa…
+                  </p>
+                </div>
+              }
+            >
+              <PlacesMap
+                events={filtered}
+                extrasOf={extrasOf}
+                onSelectEvent={setSelected}
+                onPickPlace={(p) => set({ place: p })}
+                place={place}
+              />
+            </Suspense>
+            {/* Una mappa stampata è un rettangolo di mattonelle che nessuno
+                appende: sul foglio esce il cartellone, come nell'elenco. */}
+            <div className="ink-box hidden p-3 print:block sm:p-5">
+              <AgendaList events={filtered} extrasOf={extrasOf} onSelectEvent={setSelected} flat />
+            </div>
+          </>
         ) : (
           <div className="ink-box p-3 sm:p-5">
             <div className="bunting -mx-3 -mt-3 mb-4 sm:-mx-5 sm:-mt-5" aria-hidden />
@@ -285,15 +371,40 @@ export function Home() {
       </section>
 
       {/* --------------------------------------------------------- legenda -- */}
+      {/* La legenda dice cosa vuol dire ogni colore, ed è anche il posto dove
+          viene naturale toccarlo: chi ha appena capito che il verde sono le
+          feste patronali vuole vedere le feste patronali. */}
       <section style={{ animationDelay: '240ms' }} className="mt-8 animate-ink-rise">
-        <p className="eyebrow">Legenda dei colori</p>
-        <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
-          {CATEGORIES.map((c) => (
-            <li key={c.key} className="flex items-center gap-2 text-xs font-medium text-ink-soft">
-              <span className="h-3 w-3 border border-ink" style={{ backgroundColor: c.color }} aria-hidden />
-              {c.label}
-            </li>
-          ))}
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <p className="eyebrow">Legenda dei colori</p>
+          <p className="no-print text-[0.62rem] text-ink-faint">
+            {categories.length > 0 ? 'Tocca di nuovo per togliere il filtro.' : 'Toccane uno per filtrare.'}
+          </p>
+        </div>
+        <ul className="mt-3 flex flex-wrap gap-x-2 gap-y-2">
+          {CATEGORIES.map((c) => {
+            const on = categories.includes(c.key)
+            return (
+              <li key={c.key}>
+                <button
+                  onClick={() => set({ categories: toggleCategory(categories, c.key) })}
+                  aria-pressed={on}
+                  className={`tap-grow flex items-center gap-2 border-2 px-2 py-1 text-xs font-medium transition-colors ${
+                    on
+                      ? 'border-ink bg-ink text-paper-hi'
+                      : 'border-transparent text-ink-soft hover:border-ink hover:text-ink'
+                  }`}
+                >
+                  <span
+                    className="h-3 w-3 shrink-0 border border-ink"
+                    style={{ backgroundColor: c.color }}
+                    aria-hidden
+                  />
+                  {c.label}
+                </button>
+              </li>
+            )
+          })}
         </ul>
       </section>
 
@@ -325,11 +436,46 @@ export function Home() {
               <CalendarArrowDown size={14} />
               Scarica in agenda
             </button>
+            {webcal && (
+              <a
+                href={webcal}
+                className="stamp-btn tap tap-grow flex items-center gap-2 bg-senape px-3.5 py-2.5 text-[0.65rem] font-bold tracking-[0.12em] uppercase text-ink"
+              >
+                <CalendarCheck size={14} />
+                Abbonati al cartellone
+              </a>
+            )}
+            {feed && (
+              <button
+                onClick={() => void copyFeed()}
+                className="stamp-btn tap tap-grow flex items-center gap-2 bg-paper-hi px-3.5 py-2.5 text-[0.65rem] font-bold tracking-[0.12em] uppercase text-ink"
+              >
+                {copied === 'ok' ? <Check size={14} /> : <Copy size={14} />}
+                {copied === 'ok' ? 'Indirizzo copiato' : 'Copia l’indirizzo'}
+              </button>
+            )}
           </div>
           <p className="mt-2 text-[0.65rem] text-ink-faint">
             Sul foglio finisce quel che stai guardando adesso, filtri compresi.
             {' '}Il file .ics lo aprono iPhone, Outlook e Google Calendar.
+            {feed && (
+              <>
+                {' '}L’abbonamento invece si aggiorna da solo e porta tutto il cartellone, non solo quel
+                che stai guardando: le sagre aggiunte dopo compaiono in agenda senza rifare niente.
+              </>
+            )}
           </p>
+          {copied === 'fail' && feed && (
+            /* Il browser può negare la copia — su http, o senza permesso. Non
+               si insiste: si mette l'indirizzo sotto il naso, da selezionare. */
+            <input
+              readOnly
+              value={feed}
+              onFocus={(e) => e.currentTarget.select()}
+              aria-label="Indirizzo del calendario da copiare"
+              className="mt-2 w-full border-2 border-ink bg-paper-hi px-2 py-1.5 font-mono text-[0.68rem] text-ink"
+            />
+          )}
         </section>
       )}
 
@@ -364,20 +510,25 @@ export function Home() {
 
 function DayPanel({
   title,
+  when,
   events,
   extrasOf,
   onSelect,
   accent,
+  onMore,
 }: {
   title: string
+  /** La data in chiaro arriva da fuori: ricavarla dal titolo ("Oggi" → adesso)
+   *  regge finché i pannelli sono due, e si rompe al terzo. */
+  when: string
   events: CalendarEvent[]
   extrasOf: (eventId: string) => EventExtras
   onSelect: (event: CalendarEvent) => void
   accent?: boolean
+  /** Porta al cartellone filtrato: serve dove il pannello copre più giorni e
+   *  può non bastare a contenerli. */
+  onMore?: () => void
 }) {
-  const when = new Date()
-  const label = title === 'Oggi' ? when : addDays(when, 1)
-
   return (
     /* `min-w-0`: senza, la cella della griglia non scende sotto la larghezza
        del titolo più lungo — che essendo su una riga sola non va a capo — e la
@@ -385,9 +536,7 @@ function DayPanel({
     <div className={`ink-box-sm min-w-0 p-3 ${accent ? 'border-vermiglio' : ''}`}>
       <div className="flex items-baseline justify-between gap-2 border-b-2 border-ink/20 pb-2">
         <h2 className="font-display text-lg leading-none font-black text-ink">{title}</h2>
-        <span className="eyebrow">
-          {label.toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })}
-        </span>
+        <span className="eyebrow">{when}</span>
       </div>
 
       {events.length === 0 ? (
@@ -399,13 +548,44 @@ function DayPanel({
         <ul className="mt-2.5 space-y-2">
           {events.map((event) => (
             <li key={event.id}>
-              <EventCard event={event} extras={extrasOf(event.id)} onSelect={onSelect} hideDate />
+              <EventCard
+                event={event}
+                extras={extrasOf(event.id)}
+                onSelect={onSelect}
+                /* La data si nasconde dove il pannello è già un giorno solo.
+                   Nel fine settimana serve: sapere se è sabato o domenica è
+                   metà dell'informazione. */
+                hideDate={!onMore}
+              />
             </li>
           ))}
         </ul>
       )}
+
+      {onMore && events.length > 0 && (
+        <button
+          onClick={onMore}
+          className="tap group mt-2.5 flex w-full items-center justify-center gap-1.5 border-t-2 border-ink/20 pt-2.5 text-[0.6rem] font-bold tracking-[0.12em] uppercase text-ink-soft transition-colors hover:text-vermiglio"
+        >
+          Vedi il fine settimana
+          <ArrowRight size={12} className="transition-transform group-hover:translate-x-1" />
+        </button>
+      )}
     </div>
   )
+}
+
+/** "24 agosto" per i pannelli di un giorno solo. */
+function dayLabel(d: Date): string {
+  return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })
+}
+
+/** "ven 28 – dom 30": nel pannello non c'è spazio per i mesi scritti per
+ *  intero, e il giorno della settimana conta più della data. */
+function weekendLabel(from: Date, to: Date): string {
+  const short = (d: Date) =>
+    d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric' }).replace(/\./g, '')
+  return `${short(from)} – ${short(to)}`
 }
 
 function Stat({ label, value }: { label: string; value: ReactNode }) {

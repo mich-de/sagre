@@ -17,6 +17,7 @@ import {
   Globe,
   Ban,
   Megaphone,
+  CalendarClock,
   Share2,
   Check,
   ArrowLeft,
@@ -29,8 +30,17 @@ import { getEventMedia, EMPTY_EXTRAS, type EventMedia } from '../lib/posters'
 import { linkKind, type EventLink, type LinkKind } from '../lib/links'
 import { categorize } from '../lib/categorize'
 import { downloadIcs, icsFileName } from '../lib/ics'
+import { dayLabel } from '../lib/programma'
 import { WeatherStrip } from './WeatherStrip'
-import { formatDateRange, formatDuration, eventStart, eventEndInclusive, isMultiDay, isOngoing } from '../lib/dates'
+import {
+  formatDateRange,
+  formatDuration,
+  eventStart,
+  eventEndInclusive,
+  isMultiDay,
+  isOngoing,
+  isoDay,
+} from '../lib/dates'
 
 interface EventModalProps {
   event: CalendarEvent
@@ -71,6 +81,9 @@ export function EventModal({ event, onClose, onPrev, onNext, position }: EventMo
   const status = media?.status ?? 'confermato'
   const cancelled = status === 'annullato'
   const ongoing = isOngoing(event) && !cancelled
+
+  const programma = media?.programma ?? []
+  const today = isoDay(new Date())
 
   /* La copertina è la prima foto della galleria; `cover` da solo resta il caso
      del vecchio schema, prima che l'organizzatore riapra l'evento. */
@@ -403,6 +416,46 @@ export function EventModal({ event, onClose, onPrev, onNext, position }: EventMo
               <p className="text-sm leading-relaxed whitespace-pre-line text-ink-soft">
                 {event.description}
               </p>
+            )}
+
+            {/* Programma giorno per giorno. Sta prima della nota perché chi apre
+                la scheda a festa iniziata vuole sapere cosa c'è stasera, e la
+                riga di oggi è l'unica ragione per cui queste righe hanno una
+                data vera invece di essere un testo unico. */}
+            {programma.length > 0 && (
+              <div>
+                <p className="eyebrow flex items-center gap-1.5">
+                  <CalendarClock size={11} />
+                  Programma
+                </p>
+                <ul className="mt-2 divide-y divide-ink/15 border-y border-ink/15">
+                  {programma.map((row) => {
+                    const oggi = row.date === today
+                    return (
+                      <li
+                        key={row.date}
+                        className={`flex gap-3 py-2 ${oggi ? '-mx-2 border-l-4 border-vermiglio bg-senape/15 px-2' : ''}`}
+                      >
+                        <span
+                          className={`w-[5.5rem] shrink-0 text-[0.62rem] leading-relaxed font-bold tracking-wide uppercase ${
+                            oggi ? 'text-vermiglio' : 'text-ink-soft'
+                          }`}
+                        >
+                          {dayLabel(row.date)}
+                          {oggi && <span className="block text-[0.55rem] tracking-[0.14em]">oggi</span>}
+                        </span>
+                        <span
+                          className={`min-w-0 flex-1 text-sm leading-relaxed whitespace-pre-line ${
+                            oggi ? 'font-semibold text-ink' : 'text-ink-soft'
+                          }`}
+                        >
+                          {row.text}
+                        </span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
             )}
 
             {/* Nota dell'organizzatore: quel che Google Calendar non sa dire —

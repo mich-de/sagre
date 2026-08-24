@@ -19,7 +19,7 @@ interface GCalDateTime {
   timeZone?: string
 }
 
-interface GCalEvent {
+export interface GCalEvent {
   id: string
   summary?: string
   description?: string
@@ -40,7 +40,9 @@ interface GCalEventsResponse {
 const API_KEY = import.meta.env.VITE_GOOGLE_CALENDAR_API_KEY as string | undefined
 const CALENDAR_ID = import.meta.env.VITE_GOOGLE_CALENDAR_ID as string | undefined
 
-function toCalendarEvent(raw: GCalEvent): CalendarEvent {
+/** Vale sia per la lettura dell'elenco sia per la risposta a una scrittura:
+ *  Google rimanda indietro l'evento intero, nello stesso formato. */
+export function toCalendarEvent(raw: GCalEvent): CalendarEvent {
   const allDay = !!raw.start.date
   return {
     id: raw.id,

@@ -20,10 +20,12 @@ import {
   Eye,
   Copy,
   ListChecks,
+  ClipboardList,
   ArrowDownWideNarrow,
   MapPin,
   CalendarPlus,
   CalendarCog,
+  CalendarSync,
   Pencil,
   Unlink,
 } from 'lucide-react'
@@ -35,6 +37,10 @@ import { useIsPhone } from '../hooks/useMediaQuery'
 import { EventModal } from '../components/EventModal'
 import { BulkActions } from '../components/admin/BulkActions'
 import { CopyFromDialog } from '../components/admin/CopyFromDialog'
+import { ProgrammaEditor } from '../components/admin/ProgrammaEditor'
+import { RepeatNextYear } from '../components/admin/RepeatNextYear'
+import { TodoPanel } from '../components/admin/TodoPanel'
+import { BulkAdd } from '../components/admin/BulkAdd'
 import { EventForm } from '../components/admin/EventForm'
 import {
   getEventMedia,
@@ -49,6 +55,7 @@ import {
   migrateLegacyCover,
   repairAllPosters,
   resizeImageToDataUrl,
+  hasPoster,
   EMPTY_EXTRAS,
   MAX_PHOTOS,
   MAX_LINKS,
@@ -64,6 +71,7 @@ import { normalizeUrl, isValidUrl, suggestLinkLabel, type EventLink } from '../l
 import { CATEGORIES, categorize } from '../lib/categorize'
 import { shortRange, eventStart, isOver, relativeDay } from '../lib/dates'
 import { collectPlaces, inPlace } from '../lib/places'
+import { createEvent, type EventDraft } from '../lib/calendarWrite'
 import type { CalendarEvent } from '../lib/googleCalendar'
 
 export function Admin() {
@@ -188,16 +196,19 @@ const SORTS: Array<{ key: AdminSort; label: string }> = [
   { key: 'titolo', label: 'Titolo A-Z' },
 ]
 
-/** La locandina c'è anche quando la miniatura non è ancora stata generata:
- *  le schede del vecchio schema tengono l'immagine nel documento padre. */
-const hasPoster = (ex: EventExtras) => Boolean(ex.thumb) || ex.hasLegacyCover
-
 /** "mic.deangelis" invece dell'email intera: nella colonna dell'elenco non ci
  *  sta, e chi cura le locandine si riconosce lo stesso. */
 const shortUser = (email: string) => email.split('@')[0]
 
 function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: () => void }) {
-  const { events, loading, error, reload: reloadEvents } = useCalendarEvents()
+  const {
+    events,
+    loading,
+    error,
+    reload: reloadEvents,
+    applyWrite,
+    applyDelete,
+  } = useCalendarEvents()
   const { extras, loading: extrasLoading, reload: reloadExtras } = useEventExtras()
   const google = useGoogleLink()
   const phone = useIsPhone()
@@ -210,6 +221,7 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
   const [selectMode, setSelectMode] = useState(false)
   const [picked, setPicked] = useState<string[]>([])
   const [preview, setPreview] = useState<CalendarEvent | null>(null)
+  const [bulkAddOpen, setBulkAddOpen] = useState(false)
   /* `form.open` a parte: `null` come bersaglio vuol dire "evento nuovo", e da
      solo non basta a distinguere il modulo chiuso da quello vuoto. */
   const [form, setForm] = useState<{ open: boolean; target: CalendarEvent | null }>({
@@ -335,14 +347,18 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
 
   const allPicked = filtered.length > 0 && filtered.every((e) => picked.includes(e.id))
 
-  /* Dopo una scrittura sul calendario si rilegge tutto: le date le normalizza
-     Google, e l'id di un evento nuovo lo decide lui. */
-  function handleSaved(eventId: string) {
-    setSelectedId(eventId)
+  /* L'evento che torna dalla scrittura entra subito nell'elenco — la rilettura
+     pubblica può tardare qualche secondo, e nel frattempo la sagra appena
+     salvata sembrerebbe non esistere. La rilettura parte lo stesso, e quando
+     arriva prende il posto della copia locale. */
+  function handleSaved(saved: CalendarEvent) {
+    applyWrite(saved)
+    setSelectedId(saved.id)
     reloadEvents()
   }
 
   function handleDeleted(eventId: string) {
+    applyDelete(eventId)
     if (selectedId === eventId) setSelectedId(null)
     setPicked((prev) => prev.filter((id) => id !== eventId))
     setLocal((prev) => {
@@ -374,7 +390,11 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
 
       <div className="rule-double mt-5 mb-5" />
 
-      <GoogleLinkBar google={google} onNew={() => setForm({ open: true, target: null })} />
+      <GoogleLinkBar
+        google={google}
+        onNew={() => setForm({ open: true, target: null })}
+        onBulkAdd={() => setBulkAddOpen(true)}
+      />
 
       {/* ------------------------------------------------------- cruscotto -- */}
       <dl className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -387,6 +407,13 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
         <Metric label="In evidenza" value={extrasLoading ? '—' : stats.featured} />
         <Metric label="Annullati" value={extrasLoading ? '—' : stats.cancelled} alert={stats.cancelled > 0} />
       </dl>
+
+      <TodoPanel
+        events={events}
+        extrasOf={extrasOf}
+        loading={loading || extrasLoading}
+        onPick={setSelectedId}
+      />
 
       {stats.legacy > 0 && <RepairBanner count={stats.legacy} userEmail={userEmail} onDone={reloadExtras} />}
 
@@ -581,6 +608,7 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
               hasNext={index >= 0 && index < filtered.length - 1}
               onPreview={() => setPreview(selected)}
               onEdit={google.linked ? () => setForm({ open: true, target: selected }) : null}
+              onCreated={google.linked ? handleSaved : null}
               onBackToList={() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
             />
           ) : (
@@ -605,6 +633,19 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
           onDeleted={handleDeleted}
         />
       )}
+
+      {bulkAddOpen && (
+        <BulkAdd
+          onClose={() => setBulkAddOpen(false)}
+          onDone={(saved) => {
+            /* Entrano subito nell'elenco, come per il salvataggio singolo: la
+               rilettura pubblica può tardare, e venti sagre appena scritte che
+               non si vedono sembrano venti sagre perse. */
+            saved.forEach(applyWrite)
+            reloadEvents()
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -612,7 +653,15 @@ function PosterManager({ userEmail, onLogout }: { userEmail: string; onLogout: (
 /** Il permesso di scrivere sul calendario. Sta in cima all'ufficio perché
  *  senza di quello metà dei comandi non compare, e chi apre la pagina deve
  *  capire subito perché. */
-function GoogleLinkBar({ google, onNew }: { google: GoogleLink; onNew: () => void }) {
+function GoogleLinkBar({
+  google,
+  onNew,
+  onBulkAdd,
+}: {
+  google: GoogleLink
+  onNew: () => void
+  onBulkAdd: () => void
+}) {
   if (!google.available) return null
 
   return (
@@ -640,6 +689,13 @@ function GoogleLinkBar({ google, onNew }: { google: GoogleLink; onNew: () => voi
           >
             <CalendarPlus size={13} />
             Nuovo evento
+          </button>
+          <button
+            onClick={onBulkAdd}
+            className="stamp-btn tap tap-grow flex items-center gap-1.5 bg-paper-hi px-3 py-2 text-[0.65rem] font-bold tracking-[0.12em] uppercase text-ink sm:py-1.5"
+          >
+            <ClipboardList size={13} />
+            Tante insieme
           </button>
           <button
             onClick={google.unlink}
@@ -769,6 +825,7 @@ function EventEditor({
   hasNext,
   onPreview,
   onEdit,
+  onCreated,
   onBackToList,
 }: {
   event: CalendarEvent
@@ -784,6 +841,10 @@ function EventEditor({
   /** `null` quando l'account Google non è collegato: senza permesso il
    *  bottone porterebbe solo a un errore. */
   onEdit: (() => void) | null
+  /** L'evento nuovo nato dalla ripetizione: va mostrato e selezionato subito,
+   *  senza aspettare che la lettura pubblica di Google si aggiorni. `null`
+   *  quando l'account non è collegato e non si può scrivere. */
+  onCreated: ((saved: CalendarEvent) => void) | null
   onBackToList: () => void
 }) {
   const [media, setMedia] = useState<EventMedia>(EMPTY_MEDIA)
@@ -792,6 +853,7 @@ function EventEditor({
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const [copyOpen, setCopyOpen] = useState(false)
+  const [repeatOpen, setRepeatOpen] = useState(false)
   const [dropping, setDropping] = useState(false)
   const dragFrom = useRef<number | null>(null)
 
@@ -977,12 +1039,25 @@ function EventEditor({
     }
   }
 
-  async function handleCopyFrom(sourceId: string, parts: CopyParts) {
-    await copyExtras(sourceId, event.id, parts, userEmail)
+  async function handleCopyFrom(sourceId: string, parts: CopyParts, shiftDays: number) {
+    await copyExtras(sourceId, event.id, parts, userEmail, shiftDays)
     /* Si ricarica invece di indovinare: la copia tocca foto, miniatura,
-       collegamenti e nota tutte insieme. */
+       collegamenti, nota e programma tutte insieme. */
     setReloadKey((k) => k + 1)
     setMessage({ kind: 'ok', text: 'Scheda copiata.' })
+  }
+
+  /** Duplica la sagra all'anno prossimo. L'ordine conta: prima l'evento su
+   *  Google, che assegna l'id a cui la scheda si aggancia, poi la scheda. Se
+   *  la copia della scheda fallisce l'evento resta comunque in calendario —
+   *  meglio una data senza locandina che una locandina senza data. */
+  async function handleRepeat(draft: EventDraft, parts: CopyParts, shiftDays: number) {
+    const saved = await createEvent(draft)
+    try {
+      await copyExtras(event.id, saved.id, parts, userEmail, shiftDays)
+    } finally {
+      onCreated?.(saved)
+    }
   }
 
   function dropFiles(e: React.DragEvent) {
@@ -1028,6 +1103,16 @@ function EventEditor({
           <Copy size={13} />
           Copia da…
         </button>
+        {onCreated && (
+          <button
+            onClick={() => setRepeatOpen(true)}
+            disabled={busy || loading}
+            className="stamp-btn tap-grow flex items-center gap-1.5 bg-paper-hi px-2.5 py-2 text-[0.6rem] font-bold tracking-[0.1em] uppercase text-ink disabled:opacity-50 sm:py-1.5"
+          >
+            <CalendarSync size={13} />
+            Ripeti l’anno prossimo
+          </button>
+        )}
         <button
           onClick={onBackToList}
           className="tap-grow ml-auto flex items-center gap-1 px-2 py-2 text-[0.6rem] font-bold tracking-[0.1em] uppercase text-ink-soft hover:text-ink sm:hidden"
@@ -1247,6 +1332,16 @@ function EventEditor({
         onSave={(note) => patch({ note }, { note }, 'Nota salvata.')}
       />
 
+      {/* ------------------------------------------------------ programma -- */}
+      <div className="mt-3">
+        <ProgrammaEditor
+          event={event}
+          initial={media.programma}
+          busy={busy || loading}
+          onSave={(programma) => patch({ programma }, { programma }, 'Programma salvato.')}
+        />
+      </div>
+
       {/* -------------------------------------------------- collegamenti -- */}
       <div className="rule-double my-5" />
       <LinksEditor
@@ -1289,6 +1384,16 @@ function EventEditor({
           onCopy={handleCopyFrom}
         />
       )}
+
+      {repeatOpen && onCreated && (
+        <RepeatNextYear
+          event={event}
+          extras={media}
+          onClose={() => setRepeatOpen(false)}
+          onCreate={handleRepeat}
+        />
+      )}
+
     </div>
   )
 }

@@ -17,8 +17,9 @@ interface EventFormProps {
   /** `null` = evento nuovo. */
   event: CalendarEvent | null
   onClose: () => void
-  /** Il calendario va riletto: Google assegna lui l'id e normalizza le date. */
-  onSaved: (eventId: string) => void
+  /** Riceve l'evento come l'ha registrato Google: id assegnato da lui e date
+   *  normalizzate. Va mostrato subito, senza aspettare la rilettura. */
+  onSaved: (saved: CalendarEvent) => void
   onDeleted: (eventId: string) => void
 }
 
@@ -44,12 +45,8 @@ export function EventForm({ event, onClose, onSaved, onDeleted }: EventFormProps
     setBusy(true)
     setError(null)
     try {
-      if (event) {
-        await updateEvent(event.id, draft)
-        onSaved(event.id)
-      } else {
-        onSaved(await createEvent(draft))
-      }
+      const saved = event ? await updateEvent(event.id, draft) : await createEvent(draft)
+      onSaved(saved)
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Salvataggio non riuscito.')
