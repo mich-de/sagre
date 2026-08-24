@@ -38,16 +38,34 @@ export function normalizePlace(value: string): string {
   return value.normalize('NFD').replace(MARKS, '').toLowerCase().replace(/\s+/g, ' ').trim()
 }
 
-/** I paesi presenti in cartellone, in ordine alfabetico e senza doppioni. */
-export function collectPlaces(events: CalendarEvent[]): string[] {
-  const seen = new Map<string, string>()
+export interface PlaceGroup {
+  /** Il nome come l'ha scritto chi ha compilato il calendario, la prima volta
+   *  che compare: è quello che si legge sulla mappa e nei filtri. */
+  name: string
+  /** La chiave di confronto, per chi deve ritrovare il gruppo. */
+  key: string
+  events: CalendarEvent[]
+}
+
+/** Le sagre raccolte paese per paese, in ordine alfabetico. Chi non ha un paese
+ *  riconoscibile nel campo luogo resta fuori: sulla mappa non si saprebbe dove
+ *  metterlo, e nel filtro non si saprebbe come chiamarlo. */
+export function groupByPlace(events: CalendarEvent[]): PlaceGroup[] {
+  const groups = new Map<string, PlaceGroup>()
   for (const event of events) {
     const place = placeOf(event.location)
     if (!place) continue
     const key = normalizePlace(place)
-    if (!seen.has(key)) seen.set(key, place)
+    const group = groups.get(key)
+    if (group) group.events.push(event)
+    else groups.set(key, { name: place, key, events: [event] })
   }
-  return [...seen.values()].sort((a, b) => a.localeCompare(b, 'it'))
+  return [...groups.values()].sort((a, b) => a.name.localeCompare(b.name, 'it'))
+}
+
+/** I paesi presenti in cartellone, in ordine alfabetico e senza doppioni. */
+export function collectPlaces(events: CalendarEvent[]): string[] {
+  return groupByPlace(events).map((g) => g.name)
 }
 
 export function inPlace(event: CalendarEvent, place: string): boolean {

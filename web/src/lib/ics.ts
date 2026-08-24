@@ -86,9 +86,38 @@ function vevent(event: CalendarEvent, stamp: string): string[] {
 }
 
 export function eventPageUrl(event: CalendarEvent): string {
-  const url = new URL(window.location.origin)
+  /* `BASE_URL` e non solo l'origine: il sito sta sotto /sagre/, e senza il
+     percorso il link dentro ogni .ics porta a una pagina che non esiste. */
+  const url = new URL(import.meta.env.BASE_URL, window.location.origin)
   url.searchParams.set('e', event.id)
   return url.toString()
+}
+
+/* ----------------------------------------------------------- abbonamento -- */
+
+/* Il file scaricato è una fotografia: le sagre aggiunte dopo non ci entrano, e
+ * chi l'ha scaricato in giugno ha un'agenda vecchia senza saperlo.
+ * L'abbonamento invece è un indirizzo che il telefono ricontrolla da solo, e il
+ * cartellone resta aggiornato senza che nessuno rifaccia il giro.
+ *
+ * L'indirizzo è quello iCal pubblico del calendario condiviso. Se il
+ * calendario non è configurato non si finge: `null`, e il pulsante non compare
+ * invece di portare a un errore. */
+
+const CALENDAR_ID = import.meta.env.VITE_GOOGLE_CALENDAR_ID as string | undefined
+
+/** L'indirizzo da copiare e incollare, in https: buono per Google Calendar,
+ *  che chiede l'indirizzo scritto a mano. */
+export function subscriptionUrl(): string | null {
+  if (!CALENDAR_ID) return null
+  return `https://calendar.google.com/calendar/ical/${encodeURIComponent(CALENDAR_ID)}/public/basic.ics`
+}
+
+/** Lo stesso indirizzo in `webcal:`, che iPhone, Mac e Outlook riconoscono
+ *  come "iscrivimi a questo calendario" invece di scaricare un file. */
+export function webcalUrl(): string | null {
+  const url = subscriptionUrl()
+  return url && url.replace(/^https:/, 'webcal:')
 }
 
 /** Il file, pronto da scrivere su disco. */

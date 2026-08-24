@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore'
 import { db } from './firebase'
 import type { EventLink } from './links'
+import { cleanProgramma, shiftProgramma, toProgramma, type ProgrammaRow } from './programma'
 
 /* ---------------------------------------------------------------------------
  * Google Calendar sa solo titolo, data e luogo. Tutto il resto — locandine,
@@ -37,6 +38,8 @@ export interface PosterDoc {
   dataUrl?: string
   links?: EventLink[]
   note?: string
+  /** Una riga per giorno di festa, agganciata a una data vera. */
+  programma?: ProgrammaRow[]
   category?: string
   featured?: boolean
   status?: EventStatus
@@ -56,6 +59,10 @@ export interface EventExtras {
   thumb: string | null
   links: EventLink[]
   note: string
+  /* Il programma viaggia con gli elenchi anche se lo mostra solo la scheda:
+     `listExtras` scarica i documenti interi comunque, e all'ufficio manifesti
+     serve sapere a chi manca senza una seconda lettura per evento. */
+  programma: ProgrammaRow[]
   category: string | null
   featured: boolean
   status: EventStatus
@@ -84,6 +91,7 @@ export const EMPTY_EXTRAS: EventExtras = {
   thumb: null,
   links: [],
   note: '',
+  programma: [],
   category: null,
   featured: false,
   status: 'confermato',
@@ -91,6 +99,10 @@ export const EMPTY_EXTRAS: EventExtras = {
   updatedAt: null,
   updatedBy: '',
 }
+
+/** La locandina c'è anche quando la miniatura non è ancora stata generata:
+ *  le schede del vecchio schema tengono l'immagine nel documento padre. */
+export const hasPoster = (ex: EventExtras) => Boolean(ex.thumb) || ex.hasLegacyCover
 
 const posterRef = (eventId: string) => doc(db, 'posters', eventId)
 const photosRef = (eventId: string) => collection(db, 'posters', eventId, 'photos')
@@ -101,6 +113,7 @@ function toExtras(eventId: string, data: PosterDoc | null): EventExtras {
     thumb: data?.thumb ?? null,
     links: data?.links ?? [],
     note: data?.note ?? '',
+    programma: toProgramma(data?.programma),
     category: data?.category ?? null,
     featured: data?.featured ?? false,
     status: data?.status ?? 'confermato',
@@ -155,6 +168,7 @@ export interface ExtrasPatch {
   dataUrl?: null
   links?: EventLink[]
   note?: string
+  programma?: ProgrammaRow[]
   category?: string | null
   featured?: boolean
   status?: EventStatus
@@ -178,6 +192,10 @@ export async function saveExtras(eventId: string, patch: ExtrasPatch, updatedBy:
   if (patch.featured !== undefined) put('featured', patch.featured ? true : null)
   if (patch.links !== undefined) {
     payload.links = patch.links.length ? patch.links.slice(0, MAX_LINKS) : deleteField()
+  }
+  if (patch.programma !== undefined) {
+    const rows = cleanProgramma(patch.programma)
+    payload.programma = rows.length ? rows : deleteField()
   }
   await setDoc(posterRef(eventId), payload, { merge: true })
 }
@@ -233,6 +251,7 @@ export interface CopyParts {
   photos: boolean
   links: boolean
   note: boolean
+  programma: boolean
   category: boolean
 }
 
@@ -245,12 +264,19 @@ export async function copyExtras(
   sourceId: string,
   targetId: string,
   parts: CopyParts,
-  updatedBy: string
+  updatedBy: string,
+  /** Di quanti giorni spostare le righe del programma. Le date sono vere, e
+   *  quelle dell'anno scorso su una festa di quest'anno non vogliono dire
+   *  niente: chi copia sa di quanto distano le due edizioni, questo modulo no. */
+  programmaShiftDays = 0
 ): Promise<void> {
   const source = await getPoster(sourceId)
   const patch: ExtrasPatch = {}
   if (parts.links) patch.links = source?.links ?? []
   if (parts.note) patch.note = source?.note ?? ''
+  if (parts.programma) {
+    patch.programma = shiftProgramma(toProgramma(source?.programma), programmaShiftDays)
+  }
   if (parts.category) patch.category = source?.category ?? null
 
   if (parts.photos) {

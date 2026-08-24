@@ -30,3 +30,14 @@ proguard/
 
 # Test reports
 app/lint.xml
+
+# Script usa-e-getta. La radice si era riempita di generatori di codice
+# (cal*.js, vm*.js, dec.py…) che scrivevano file dentro app/ e poi non
+# servivano più: da qui in avanti hanno una loro cartella, e non si committano.
+/.scratch/
+
+# Cache del compilatore Kotlin
+.kotlin/
+
+# Editor
+.vscode/

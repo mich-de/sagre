@@ -64,6 +64,32 @@ export function addDays(d: Date, days: number): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days)
 }
 
+/** "2026-08-14", nel fuso locale. `toISOString` qui non va: converte in UTC e
+ *  in Italia d'estate riporta indietro il giorno per tutto agosto. */
+export function isoDay(d: Date): string {
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  return `${d.getFullYear()}-${m}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** Il fine settimana di cui si parla adesso: venerdì, sabato e domenica.
+ *  Da lunedì a giovedì è quello che viene; da venerdì a domenica è quello in
+ *  corso, non il prossimo — la domenica pomeriggio «questo fine settimana»
+ *  vuol dire ancora oggi, non fra sei giorni. */
+export function weekendWindow(now: Date = new Date()): { from: Date; to: Date } {
+  const today = startOfDay(now)
+  /* 0 domenica … 5 venerdì, 6 sabato. */
+  const day = today.getDay()
+  const toFriday = day === 0 ? -2 : day === 6 ? -1 : day === 5 ? 0 : 5 - day
+  const from = addDays(today, toFriday)
+  return { from, to: addDays(from, 2) }
+}
+
+/** Quanti giorni separano due date scritte 'AAAA-MM-GG'. Passa per
+ *  `parseEventDate`, quindi l'ora legale non falsa il conto. */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((parseEventDate(to).getTime() - parseEventDate(from).getTime()) / DAY_MS)
+}
+
 /** L'evento è in cartellone in quel giorno? Vale anche per le sagre lunghe,
  *  che occupano tutti i giorni tra inizio e fine inclusiva. */
 export function occursOn(event: CalendarEvent, day: Date): boolean {

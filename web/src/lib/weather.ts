@@ -1,6 +1,6 @@
 import type { CalendarEvent } from './googleCalendar'
 import { placeOf, normalizePlace } from './places'
-import { eventStart, eventEndInclusive, startOfDay, addDays } from './dates'
+import { eventStart, eventEndInclusive, isoDay, startOfDay, addDays } from './dates'
 
 /* ---------------------------------------------------------------------------
  * Una sagra si fa in piazza: la domanda che tutti fanno prima di uscire di
@@ -219,10 +219,6 @@ export async function forecast(coords: Coords): Promise<DayWeather[]> {
 }
 
 /* ------------------------------------------------- finestra dell'evento -- */
-
-function isoDay(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 /** I giorni della festa che cadono dentro la finestra delle previsioni, da
  *  oggi in avanti: quello che è già passato non interessa più a nessuno. */

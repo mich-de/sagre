@@ -1,5 +1,13 @@
 import type { CalendarEvent } from './googleCalendar'
-import { addDays, eventEndInclusive, eventStart, isOver, parseEventDate, startOfDay } from './dates'
+import {
+  addDays,
+  eventEndInclusive,
+  eventStart,
+  isOver,
+  parseEventDate,
+  startOfDay,
+  weekendWindow,
+} from './dates'
 
 /* ---------------------------------------------------------------------------
  * Filtri e ordinamento del cartellone, tenuti fuori dai componenti perché li
@@ -7,12 +15,13 @@ import { addDays, eventEndInclusive, eventStart, isOver, parseEventDate, startOf
  * l'indirizzo del browser per ricordarseli.
  * ------------------------------------------------------------------------- */
 
-export type CalendarViewMode = 'grid' | 'list'
-export type TimeRange = 'futuri' | 'settimana' | 'tutti' | 'intervallo'
+export type CalendarViewMode = 'grid' | 'list' | 'map'
+export type TimeRange = 'futuri' | 'weekend' | 'settimana' | 'tutti' | 'intervallo'
 export type SortKey = 'prossimi' | 'recenti' | 'alfabetico'
 
 export const RANGES: Array<{ key: TimeRange; label: string }> = [
   { key: 'futuri', label: 'In arrivo' },
+  { key: 'weekend', label: 'Questo fine settimana' },
   { key: 'settimana', label: 'Prossimi 7 giorni' },
   { key: 'tutti', label: 'Tutto lo storico' },
   { key: 'intervallo', label: 'Da… a…' },
@@ -42,7 +51,21 @@ export function inTimeRange(
   if (range === 'tutti') return true
   if (isOver(event, now)) return false
   if (range === 'settimana' && eventStart(event) >= addDays(startOfDay(now), 8)) return false
+  if (range === 'weekend') {
+    /* Come l'intervallo su misura, per sovrapposizione: una sagra che comincia
+       il giovedì e finisce la domenica è una sagra del fine settimana. */
+    const { from: friday, to: sunday } = weekendWindow(now)
+    if (startOfDay(eventEndInclusive(event)) < friday) return false
+    if (startOfDay(eventStart(event)) > sunday) return false
+  }
   return true
+}
+
+/** Accende o spegne una categoria. Sta qui perché la scelta dei colori si fa
+ *  da due posti — la barra dei filtri e la legenda in fondo alla pagina — e
+ *  devono comportarsi allo stesso modo. */
+export function toggleCategory(categories: string[], key: string): string[] {
+  return categories.includes(key) ? categories.filter((k) => k !== key) : [...categories, key]
 }
 
 /** `recenti` guarda quando l'evento è stato scritto sul calendario, non quando

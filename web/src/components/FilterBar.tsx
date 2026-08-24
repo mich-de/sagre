@@ -1,7 +1,16 @@
 import { useEffect, useRef } from 'react'
-import { Search, X, LayoutGrid, Rows3, MapPin, ArrowDownWideNarrow } from 'lucide-react'
+/* `Map` si chiama come il tipo di JavaScript: rinominata, perché un giorno
+   qualcuno scriverà `new Map()` in questo file e non capirà l'errore. */
+import { Search, X, LayoutGrid, Rows3, Map as MapIcon, MapPin, ArrowDownWideNarrow } from 'lucide-react'
 import { CATEGORIES } from '../lib/categorize'
-import { RANGES, SORTS, type CalendarViewMode, type SortKey, type TimeRange } from '../lib/filters'
+import {
+  RANGES,
+  SORTS,
+  toggleCategory,
+  type CalendarViewMode,
+  type SortKey,
+  type TimeRange,
+} from '../lib/filters'
 import type { HomeFilters } from '../hooks/useHomeFilters'
 
 interface FilterBarProps {
@@ -21,6 +30,9 @@ interface FilterBarProps {
 export function FilterBar({ filters, onChange, onClear, places, filtering, shown, total }: FilterBarProps) {
   const { query, categories, range, from, to, place, sort, view } = filters
   const list = view === 'list'
+  /* La finestra temporale vale dove non c'è già un mese sotto gli occhi: nella
+     griglia il mese che si sta guardando *è* la finestra, sulla mappa no. */
+  const timed = view !== 'grid'
   const searchRef = useRef<HTMLInputElement | null>(null)
 
   /* "/" porta il cursore nella ricerca, come su ogni sito che si sfoglia
@@ -71,6 +83,9 @@ export function FilterBar({ filters, onChange, onClear, places, filtering, shown
           <ViewButton active={list} onClick={() => onChange({ view: 'list' })} label="Elenco">
             <Rows3 size={13} />
           </ViewButton>
+          <ViewButton active={view === 'map'} onClick={() => onChange({ view: 'map' })} label="Mappa">
+            <MapIcon size={13} />
+          </ViewButton>
         </div>
       </div>
 
@@ -116,9 +131,7 @@ export function FilterBar({ filters, onChange, onClear, places, filtering, shown
         )}
       </div>
 
-      {/* La finestra temporale ha senso solo nell'elenco: la griglia mostra
-          comunque il mese che si sta guardando. */}
-      {list && (
+      {timed && (
         <>
           <div className="mt-2.5 flex flex-wrap gap-1.5">
             {RANGES.map((r) => (
@@ -160,11 +173,7 @@ export function FilterBar({ filters, onChange, onClear, places, filtering, shown
           return (
             <button
               key={c.key}
-              onClick={() =>
-                onChange({
-                  categories: on ? categories.filter((k) => k !== c.key) : [...categories, c.key],
-                })
-              }
+              onClick={() => onChange({ categories: toggleCategory(categories, c.key) })}
               aria-pressed={on}
               className={`tap-grow flex items-center gap-1.5 border-2 px-2.5 py-1.5 text-[0.6rem] font-bold tracking-[0.1em] uppercase transition-colors ${
                 on ? 'border-ink text-paper-hi' : 'border-ink/25 text-ink-soft hover:border-ink hover:text-ink'
@@ -241,7 +250,9 @@ function ViewButton({
       onClick={onClick}
       aria-pressed={active}
       title={label}
-      className={`tap tap-grow flex items-center gap-1.5 border-2 border-ink px-3 py-2 text-[0.6rem] font-bold tracking-[0.12em] uppercase transition-colors first:border-r-0 ${
+      /* Il bordo destro lo salta chiunque non sia l'ultimo: con tre pulsanti
+         attaccati `first:` lascerebbe una riga doppia in mezzo. */
+      className={`tap tap-grow flex items-center gap-1.5 border-2 border-ink px-3 py-2 text-[0.6rem] font-bold tracking-[0.12em] uppercase transition-colors [&:not(:last-child)]:border-r-0 ${
         active ? 'bg-ink text-paper-hi' : 'bg-paper-hi text-ink hover:bg-paper-2'
       }`}
     >

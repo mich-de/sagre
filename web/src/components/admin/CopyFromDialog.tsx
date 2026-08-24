@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { AlertTriangle, Copy, Image as ImageIcon, Search, X } from 'lucide-react'
 import type { CalendarEvent } from '../../lib/googleCalendar'
 import type { CopyParts, EventExtras } from '../../lib/posters'
-import { shortRange } from '../../lib/dates'
+import { eventStart, shortRange, startOfDay } from '../../lib/dates'
+import { PartToggle } from './PartToggle'
 
 interface CopyFromDialogProps {
   events: CalendarEvent[]
@@ -10,8 +11,13 @@ interface CopyFromDialogProps {
   target: CalendarEvent
   targetHasPhotos: boolean
   onClose: () => void
-  onCopy: (sourceId: string, parts: CopyParts) => Promise<void>
+  /** `shiftDays` allinea il primo giorno del programma copiato al primo giorno
+   *  di questa festa: le date delle righe sono vere, e quelle dell'edizione
+   *  passata su questa non vorrebbero dire niente. */
+  onCopy: (sourceId: string, parts: CopyParts, shiftDays: number) => Promise<void>
 }
+
+const DAY_MS = 86_400_000
 
 /** Ricopia la scheda di un altro evento. Le sagre tornano ogni anno con la
  *  stessa locandina e gli stessi social: qui si pesca dall'edizione passata
@@ -26,7 +32,13 @@ export function CopyFromDialog({
 }: CopyFromDialogProps) {
   const [query, setQuery] = useState('')
   const [sourceId, setSourceId] = useState<string | null>(null)
-  const [parts, setParts] = useState<CopyParts>({ photos: true, links: true, note: true, category: false })
+  const [parts, setParts] = useState<CopyParts>({
+    photos: true,
+    links: true,
+    note: true,
+    programma: true,
+    category: false,
+  })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -38,22 +50,34 @@ export function CopyFromDialog({
       .filter((e) => {
         if (e.id === target.id) return false
         const ex = extrasOf(e.id)
-        const rich = Boolean(ex.thumb) || ex.hasLegacyCover || ex.links.length > 0 || ex.note || ex.category
+        const rich =
+          Boolean(ex.thumb) ||
+          ex.hasLegacyCover ||
+          ex.links.length > 0 ||
+          Boolean(ex.note) ||
+          ex.programma.length > 0 ||
+          Boolean(ex.category)
         if (!rich) return false
         return !q || `${e.title} ${e.location}`.toLowerCase().includes(q)
       })
       .slice(0, 60)
   }, [events, extrasOf, target.id, query])
 
-  const nothingChosen = !parts.photos && !parts.links && !parts.note && !parts.category
+  const nothingChosen = !Object.values(parts).some(Boolean)
   const willReplace = parts.photos && targetHasPhotos
 
   async function handleCopy() {
     if (!sourceId) return
+    const source = events.find((e) => e.id === sourceId)
+    const shiftDays = source
+      ? Math.round(
+          (startOfDay(eventStart(target)).getTime() - startOfDay(eventStart(source)).getTime()) / DAY_MS
+        )
+      : 0
     setBusy(true)
     setError(null)
     try {
-      await onCopy(sourceId, parts)
+      await onCopy(sourceId, parts, shiftDays)
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Copia non riuscita.')
@@ -132,6 +156,7 @@ export function CopyFromDialog({
                     {shortRange(e)}
                     {ex.links.length > 0 && ` · ${ex.links.length} link`}
                     {ex.note && ' · nota'}
+                    {ex.programma.length > 0 && ' · programma'}
                   </span>
                 </span>
               </button>
@@ -150,6 +175,12 @@ export function CopyFromDialog({
             </PartToggle>
             <PartToggle on={parts.note} onClick={() => setParts((p) => ({ ...p, note: !p.note }))}>
               Nota
+            </PartToggle>
+            <PartToggle
+              on={parts.programma}
+              onClick={() => setParts((p) => ({ ...p, programma: !p.programma }))}
+            >
+              Programma
             </PartToggle>
             <PartToggle on={parts.category} onClick={() => setParts((p) => ({ ...p, category: !p.category }))}>
               Categoria
@@ -183,24 +214,3 @@ export function CopyFromDialog({
   )
 }
 
-function PartToggle({
-  on,
-  onClick,
-  children,
-}: {
-  on: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      onClick={onClick}
-      aria-pressed={on}
-      className={`tap-grow flex items-center border-2 px-2.5 py-1.5 text-[0.6rem] font-bold tracking-[0.1em] uppercase transition-colors ${
-        on ? 'border-ink bg-ink text-paper-hi' : 'border-ink/25 text-ink-soft hover:border-ink hover:text-ink'
-      }`}
-    >
-      {children}
-    </button>
-  )
-}

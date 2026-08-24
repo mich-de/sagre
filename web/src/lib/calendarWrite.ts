@@ -8,8 +8,8 @@
  * ------------------------------------------------------------------------- */
 
 import { accessToken } from './googleAuth'
-import { addDays, eventEndExclusive, eventEndInclusive, eventStart, parseEventDate } from './dates'
-import type { CalendarEvent } from './googleCalendar'
+import { addDays, eventEndExclusive, eventEndInclusive, eventStart, isoDay, parseEventDate } from './dates'
+import { toCalendarEvent, type CalendarEvent, type GCalEvent } from './googleCalendar'
 
 const CALENDAR_ID = import.meta.env.VITE_GOOGLE_CALENDAR_ID as string | undefined
 const BASE = 'https://www.googleapis.com/calendar/v3/calendars'
@@ -30,7 +30,6 @@ export interface EventDraft {
 }
 
 const pad = (n: number) => String(n).padStart(2, '0')
-const isoDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 const isoTime = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`
 
 /** Gli eventi che si ripetono arrivano già "srotolati" in singole date, e
@@ -40,7 +39,7 @@ const INSTANCE_ID = /_\d{8}(t\d{6}z)?$/i
 export const isRecurringInstance = (id: string) => INSTANCE_ID.test(id)
 
 export function emptyDraft(day: Date = new Date()): EventDraft {
-  const date = isoDate(day)
+  const date = isoDay(day)
   return {
     title: '',
     location: '',
@@ -61,10 +60,10 @@ export function draftFrom(event: CalendarEvent): EventDraft {
     location: event.location,
     description: event.description,
     allDay: event.allDay,
-    startDate: isoDate(start),
+    startDate: isoDay(start),
     /* Tutto il giorno: si mostra l'ultimo giorno di festa. Con l'orario
        invece conta l'istante vero in cui si chiude, anche dopo mezzanotte. */
-    endDate: isoDate(event.allDay ? eventEndInclusive(event) : until),
+    endDate: isoDay(event.allDay ? eventEndInclusive(event) : until),
     startTime: isoTime(start),
     endTime: isoTime(until),
   }
@@ -97,7 +96,7 @@ function toBody(draft: EventDraft) {
 
   if (draft.allDay) {
     body.start = { date: draft.startDate }
-    body.end = { date: isoDate(addDays(parseEventDate(draft.endDate), 1)) }
+    body.end = { date: isoDay(addDays(parseEventDate(draft.endDate), 1)) }
   } else {
     /* Niente fuso scritto a mano nella data: si dichiara a parte, così
        l'ora resta quella del posto anche quando cambia l'ora legale. */
@@ -144,17 +143,55 @@ async function readError(res: Response): Promise<string> {
  *  e nessuno vuole una raffica di email a ogni correzione di orario. */
 const QUIET = '?sendUpdates=none'
 
-export async function createEvent(draft: EventDraft): Promise<string> {
+/* Si restituisce l'evento intero, non solo il suo id: la risposta di Google è
+   già l'evento come lui l'ha registrato — date normalizzate comprese — ed è
+   l'unica copia certa finché la lettura pubblica non si aggiorna. Vedi
+   `useCalendarEvents`, che la tiene da parte proprio per quell'attesa. */
+export async function createEvent(draft: EventDraft): Promise<CalendarEvent> {
   const res = await call(QUIET, { method: 'POST', body: JSON.stringify(toBody(draft)) })
-  const created = (await res.json()) as { id: string }
-  return created.id
+  return toCalendarEvent((await res.json()) as GCalEvent)
 }
 
-export async function updateEvent(eventId: string, draft: EventDraft): Promise<void> {
-  await call(`/${encodeURIComponent(eventId)}${QUIET}`, {
+export interface CreateManyReport {
+  saved: CalendarEvent[]
+  /** Chi non ce l'ha fatta. L'indice è quello nell'elenco passato: serve a chi
+   *  chiama per ritrovare la riga esatta, che il titolo da solo non basta —
+   *  due paesi vicini fanno la sagra della salsiccia lo stesso fine settimana. */
+  failed: Array<{ index: number; title: string; error: string }>
+}
+
+/** Tante sagre in fila, una per volta. Non in parallelo: una raffica di venti
+ *  scritture insieme si prende un errore di quota di Google e lascia il
+ *  cartellone a metà, com'è già scritto in `runBulk` di `posters.ts`. Un errore
+ *  su una riga non ferma le altre — chi ha incollato venti sagre vuole le
+ *  diciannove buone, e sapere qual è quella rimasta fuori. */
+export async function createMany(
+  drafts: EventDraft[],
+  onProgress?: (done: number, total: number) => void
+): Promise<CreateManyReport> {
+  const report: CreateManyReport = { saved: [], failed: [] }
+  for (const [i, draft] of drafts.entries()) {
+    onProgress?.(i, drafts.length)
+    try {
+      report.saved.push(await createEvent(draft))
+    } catch (err) {
+      report.failed.push({
+        index: i,
+        title: draft.title,
+        error: err instanceof Error ? err.message : 'Errore sconosciuto.',
+      })
+    }
+  }
+  onProgress?.(drafts.length, drafts.length)
+  return report
+}
+
+export async function updateEvent(eventId: string, draft: EventDraft): Promise<CalendarEvent> {
+  const res = await call(`/${encodeURIComponent(eventId)}${QUIET}`, {
     method: 'PATCH',
     body: JSON.stringify(toBody(draft)),
   })
+  return toCalendarEvent((await res.json()) as GCalEvent)
 }
 
 export async function deleteEvent(eventId: string): Promise<void> {

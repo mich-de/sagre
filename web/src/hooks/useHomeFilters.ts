@@ -26,9 +26,9 @@ export interface HomeFilters {
   view: CalendarViewMode
 }
 
-const RANGE_KEYS: TimeRange[] = ['futuri', 'settimana', 'tutti', 'intervallo']
+const RANGE_KEYS: TimeRange[] = ['futuri', 'weekend', 'settimana', 'tutti', 'intervallo']
 const SORT_KEYS: SortKey[] = ['prossimi', 'recenti', 'alfabetico']
-const VIEW_KEYS: CalendarViewMode[] = ['grid', 'list']
+const VIEW_KEYS: CalendarViewMode[] = ['grid', 'list', 'map']
 
 function pick<T extends string>(value: string | null, allowed: T[], fallback: T): T {
   return allowed.includes(value as T) ? (value as T) : fallback
@@ -38,7 +38,7 @@ function pick<T extends string>(value: string | null, allowed: T[], fallback: T)
  *  quindi senza preferenze salvate si parte dall'elenco. */
 function preferredView(): CalendarViewMode {
   const saved = localStorage.getItem(VIEW_KEY)
-  if (saved === 'grid' || saved === 'list') return saved
+  if (saved === 'grid' || saved === 'list' || saved === 'map') return saved
   return window.matchMedia('(max-width: 640px)').matches ? 'list' : 'grid'
 }
 

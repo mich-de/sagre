@@ -589,6 +589,76 @@ summary,
   margin-left: 0;
 }
 
+/* ---------------------------------------------------------- Leaflet -- */
+/* Le mattonelle di OpenStreetMap sono grigio-azzurre da atlante scolastico: in
+   mezzo a un manifesto di carta ingiallita stonano come una fotografia a
+   colori incollata su un giornale del '52. Un filtro seppia le riporta sul
+   tono della pagina — costa una riga e non tocca i dati. */
+.leaflet-container {
+  background: var(--color-paper-2);
+  font-family: var(--font-body);
+}
+.leaflet-tile-pane {
+  filter: sepia(0.55) saturate(0.7) contrast(1.05) brightness(1.02);
+}
+
+/* I pallini dei paesi. Il colore sta qui e non nelle opzioni di Leaflet perché
+   qui ci sono già tutti gli altri colori di stampa, e perché negli attributi
+   SVG le variabili CSS non si possono usare. */
+.sagra-pin {
+  fill: var(--color-vermiglio);
+  fill-opacity: 0.75;
+  stroke: var(--color-ink);
+  stroke-width: 2;
+  cursor: pointer;
+  transition: fill-opacity 120ms ease-out;
+}
+.sagra-pin:hover {
+  fill-opacity: 0.95;
+}
+.sagra-pin.is-active {
+  fill: var(--color-senape);
+  fill-opacity: 1;
+  stroke-width: 3;
+}
+
+/* Etichetta al passaggio del dito o del mouse: un cartellino di carta, non la
+   nuvoletta bianca arrotondata di serie. */
+.leaflet-tooltip.sagra-tip {
+  border: 2px solid var(--color-ink);
+  border-radius: 0;
+  background: var(--color-paper-hi);
+  box-shadow: 2px 2px 0 var(--color-ink);
+  color: var(--color-ink);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.15rem 0.4rem;
+}
+.leaflet-tooltip.sagra-tip::before {
+  display: none;
+}
+
+/* Comandi e attribuzione: quadrati e a inchiostro, come i pulsanti timbro. */
+.leaflet-bar,
+.leaflet-bar a {
+  border-radius: 0 !important;
+  border-color: var(--color-ink);
+  background: var(--color-paper-hi);
+  color: var(--color-ink);
+}
+.leaflet-bar a:hover {
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+}
+.leaflet-control-attribution {
+  background: color-mix(in srgb, var(--color-paper-hi) 88%, transparent) !important;
+  color: var(--color-ink-soft);
+  font-size: 0.6rem;
+}
+.leaflet-control-attribution a {
+  color: var(--color-ink);
+}
+
 /* Barra di scorrimento coerente con la carta. */
 * {
   scrollbar-color: var(--color-ink-faint) transparent;
