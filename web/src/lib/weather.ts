@@ -249,6 +249,11 @@ export async function forecast(coords: Coords): Promise<DayWeather[]> {
 /** Il bollettino di un posto in questo momento. */
 export interface NowWeather {
   place: string
+  /** Gli altri paesi che ricadono nella **stessa casella** del modello, e che
+   *  quindi hanno per forza questi stessi numeri. Vanno scritti sulla scheda:
+   *  chi cerca Sant'Agnello deve trovare Sant'Agnello, e una misura che copre
+   *  tre paesi lo dice invece di far sparire due nomi. Quasi sempre vuoto. */
+  also: string[]
   /** Ora della misura, `aaaa-mm-ggThh:mm` nel fuso di Roma. Non è l'ora in cui
    *  si è chiesta: il servizio aggiorna a scatti di un quarto d'ora, e dire
    *  "adesso" quando il dato è di venti minuti fa è una bugia piccola ma è una
@@ -269,29 +274,40 @@ export interface NowWeather {
   windFrom: number
 }
 
-/** I posti del bollettino, dal golfo alla costiera.
+/** I paesi del bollettino: la penisola comune per comune, poi la costiera.
  *
  *  Sono coordinate scritte a mano, e va bene così: la geografia della penisola
  *  non cambia, a differenza di una tabella frazione→comune che invecchia a ogni
- *  sagra nuova. Sette e non uno perché in mezzo ci sono i monti Lattari: a
- *  Sorrento c'è il sole e a Tramonti piove, e un numero solo per tutti direbbe
- *  la cosa giusta a metà della gente.
+ *  sagra nuova. Non uno solo perché in mezzo ci sono i monti Lattari: a Sorrento
+ *  c'è il sole e a Tramonti piove, e un numero per tutti direbbe la cosa giusta
+ *  a metà della gente.
  *
- *  **Uno per cella della griglia.** Il modello gira su maglie da qualche
- *  chilometro, e due paesi vicini ricevono lo stesso identico numero: Vico
- *  Equense e Sorrento cadono nella stessa casella, e due schede gemelle sullo
- *  schermo si leggono come un guasto, non come una misura. Vico Equense — che di
- *  sagre ne ha tante — resta fuori per questo, non per dimenticanza. Chi tocca
- *  questo elenco lo verifichi: il servizio restituisce le coordinate agganciate
- *  alla griglia, e basta guardare se si ripetono. */
+ *  **L'ordine non è casuale.** Se due paesi cadono nella stessa casella del
+ *  modello vince il primo, e gli altri gli finiscono scritti sotto come `also`:
+ *  quindi il nome che la gente conosce deve venire prima. Misurato il 25 agosto
+ *  2026 su `NOW_MODEL`, l'unica casella condivisa è Sorrento con Sant'Agnello e
+ *  Piano di Sorrento — ed è per questo che Sorrento apre l'elenco invece di
+ *  stare al suo posto geografico in mezzo agli altri.
+ *
+ *  Chi aggiunge un paese lo verifichi come si è fatto qui: la risposta contiene
+ *  le coordinate **agganciate alla griglia**, e basta guardare quali si
+ *  ripetono. Aggiungerne uno non costa una richiesta in più — vanno tutti nella
+ *  stessa — ma costa una scheda sullo schermo. */
 export const NOW_SPOTS: Array<{ name: string; lat: number; lon: number }> = [
-  { name: 'Castellammare', lat: 40.695, lon: 14.483 },
-  { name: 'Sorrento', lat: 40.626, lon: 14.375 },
-  { name: 'Massa Lubrense', lat: 40.609, lon: 14.343 },
-  { name: 'Positano', lat: 40.628, lon: 14.485 },
-  { name: 'Amalfi', lat: 40.634, lon: 14.603 },
-  { name: 'Tramonti', lat: 40.696, lon: 14.632 },
-  { name: 'Ischia', lat: 40.744, lon: 13.947 },
+  { name: 'Sorrento', lat: 40.6263, lon: 14.3757 },
+  { name: 'Sant’Agnello', lat: 40.6294, lon: 14.3956 },
+  { name: 'Piano di Sorrento', lat: 40.6394, lon: 14.4064 },
+  { name: 'Meta', lat: 40.6425, lon: 14.4181 },
+  { name: 'Vico Equense', lat: 40.6614, lon: 14.4247 },
+  { name: 'Castellammare di Stabia', lat: 40.6947, lon: 14.4811 },
+  { name: 'Gragnano', lat: 40.6889, lon: 14.5183 },
+  { name: 'Sant’Agata sui Due Golfi', lat: 40.6153, lon: 14.3706 },
+  { name: 'Massa Lubrense', lat: 40.6094, lon: 14.3428 },
+  { name: 'Positano', lat: 40.6281, lon: 14.485 },
+  { name: 'Praiano', lat: 40.611, lon: 14.5289 },
+  { name: 'Amalfi', lat: 40.634, lon: 14.6027 },
+  { name: 'Tramonti', lat: 40.6961, lon: 14.6322 },
+  { name: 'Ischia', lat: 40.7439, lon: 13.947 },
 ]
 
 /** I venti come li chiama chi va per mare, non solo la sigla: su una costa
@@ -321,6 +337,32 @@ export const GUSTY_KMH = 50
  *  servizio ricalcola ogni quarto d'ora, e chiederglielo più spesso è solo
  *  traffico che restituisce lo stesso numero. */
 const NOW_TTL_MS = 10 * 60 * 1000
+
+/** Il modello a maglia fine, e la ragione per cui non si usa il predefinito.
+ *
+ *  Misurato il 25 agosto 2026 sugli stessi ventidue paesi, chiedendo le
+ *  coordinate agganciate alla griglia e poi **confrontando i numeri**, non solo
+ *  contando le coordinate:
+ *
+ *  - `best_match` (predefinito): 22 paesi → **10 caselle**. Una sola si mangia
+ *    Vico Equense, Seiano, Meta, Piano di Sorrento, Sant'Agnello, Sorrento e
+ *    Sant'Agata. E mette insieme Gragnano e Positano, che stanno ai due lati
+ *    della montagna. Troppo larga per una penisola stretta così.
+ *  - `meteofrance_seamless`: 20 coordinate su 20 tutte diverse, e sembra la
+ *    risposta — ma sono le coordinate **chieste**, restituite tali e quali:
+ *    delle dodici letture solo nove erano distinte, con otto paesi a vento
+ *    identico. Un modello che interpola invece di agganciare è peggio del
+ *    predefinito, perché il controllo dei doppioni qui sotto smette di
+ *    funzionare senza dire niente. Da non riprovare.
+ *  - `dmi_seamless` (scelto): **12 letture su 12 davvero distinte**, tutti i
+ *    campi presenti, nodi di griglia veri da un paio di chilometri. E si vede
+ *    che è fisica e non rumore: Positano riparata nella sua cala segnava 4 km/h
+ *    di vento mentre Gragnano, dietro i monti, ne segnava 24.
+ *
+ *  Vale solo per il bollettino di adesso. Le previsioni dei giorni (`forecast`)
+ *  restano sul predefinito: là servono sette giorni, e i modelli ad area
+ *  limitata arrivano molto meno lontano. */
+const NOW_MODEL = 'dmi_seamless'
 
 const NOW_FIELDS = [
   'temperature_2m',
@@ -355,64 +397,97 @@ interface NowResponse {
   }
 }
 
-/** Il bollettino di tutti i posti, in **una** richiesta: Open-Meteo accetta le
- *  coordinate in fila e risponde con un elenco nello stesso ordine. Sette
- *  chiamate separate sarebbero sette volte il traffico per lo stesso dato.
+function nowUrl(model: string | null): string {
+  return (
+    `${FORECAST_URL}?latitude=${NOW_SPOTS.map((s) => s.lat).join(',')}` +
+    `&longitude=${NOW_SPOTS.map((s) => s.lon).join(',')}` +
+    `&current=${NOW_FIELDS}&timezone=Europe%2FRome` +
+    (model ? `&models=${model}` : '')
+  )
+}
+
+/** Una scheda per casella del modello, coi paesi che quella casella copre.
  *
- *  Elenco vuoto se il servizio non risponde: una sezione che non compare è
+ *  Qui sta il punto delicato di tutta la sezione. Il modello misura su una
+ *  griglia, e paesi vicini possono ricadere nella stessa maglia: prima il
+ *  secondo veniva **scartato**, perché due schede coi numeri identici si
+ *  leggono come un guasto. Solo che così Sant'Agnello e Piano di Sorrento non
+ *  comparivano affatto, e chi ci abita non trovava il suo paese — che è un
+ *  difetto peggiore di quello che si voleva evitare.
+ *
+ *  La misura resta una, ma dice quali paesi copre. Niente numeri finti per far
+ *  quadrare i nomi, e nessun nome sparito per far quadrare i numeri. */
+function groupByCell(list: NowResponse[]): NowWeather[] {
+  const byCell = new Map<string, NowWeather>()
+  list.forEach((entry, i) => {
+    const c = entry.current
+    const spot = NOW_SPOTS[i]
+    if (!c || !spot || c.temperature_2m == null) return
+
+    const cell = `${entry.latitude},${entry.longitude}`
+    const already = byCell.get(cell)
+    if (already) {
+      already.also.push(spot.name)
+      return
+    }
+    byCell.set(cell, {
+      place: spot.name,
+      also: [],
+      time: c.time,
+      temp: Math.round(c.temperature_2m),
+      feels: Math.round(c.apparent_temperature),
+      humidity: Math.round(c.relative_humidity_2m),
+      rain: c.precipitation ?? 0,
+      code: c.weather_code ?? 0,
+      wind: Math.round(c.wind_speed_10m),
+      gust: Math.round(c.wind_gusts_10m),
+      windFrom: c.wind_direction_10m ?? 0,
+    })
+  })
+  return [...byCell.values()]
+}
+
+async function askNow(model: string | null): Promise<NowWeather[]> {
+  const res = await fetch(nowUrl(model))
+  if (!res.ok) return []
+  const data = (await res.json()) as NowResponse[] | NowResponse
+  /* Con una coordinata sola il servizio risponde con l'oggetto nudo invece
+     dell'elenco: oggi sono quattordici, ma la giornata in cui `NOW_SPOTS` si
+     riduce a uno non deve essere la giornata in cui la sezione sparisce senza
+     che nessuno capisca perché. */
+  return groupByCell(Array.isArray(data) ? data : [data])
+}
+
+/** Il bollettino di tutti i paesi, in **una** richiesta: Open-Meteo accetta le
+ *  coordinate in fila e risponde con un elenco nello stesso ordine. Quattordici
+ *  chiamate separate sarebbero quattordici volte il traffico per lo stesso dato.
+ *
+ *  Due tentativi, non uno: `NOW_MODEL` è un modello nazionale ad area limitata,
+ *  e legare l'intera sezione a un solo fornitore vorrebbe dire che il giorno che
+ *  è fuori servizio la sezione svanisce. Se non torna niente si richiede senza
+ *  modello — la maglia è più larga, i paesi si raggruppano di più, ma i numeri
+ *  ci sono. Un bollettino grossolano batte un buco.
+ *
+ *  Elenco vuoto solo se falliscono tutti e due: una sezione che non compare è
  *  meglio di una sezione con dentro dei buchi. */
 export async function nowAround(force = false): Promise<NowWeather[]> {
   if (!force && nowCache && Date.now() - nowCache.at < NOW_TTL_MS) return nowCache.spots
   if (nowPending) return nowPending
 
-  const url =
-    `${FORECAST_URL}?latitude=${NOW_SPOTS.map((s) => s.lat).join(',')}` +
-    `&longitude=${NOW_SPOTS.map((s) => s.lon).join(',')}` +
-    `&current=${NOW_FIELDS}&timezone=Europe%2FRome`
-
   nowPending = (async () => {
-    try {
-      const res = await fetch(url)
-      if (!res.ok) return []
-      const data = (await res.json()) as NowResponse[] | NowResponse
-      /* Con una coordinata sola il servizio risponde con l'oggetto nudo invece
-         dell'elenco: qui sono sempre sette, ma la giornata in cui `NOW_SPOTS`
-         si riduce a uno non deve essere la giornata in cui la sezione sparisce
-         senza che nessuno capisca perché. */
-      const list = Array.isArray(data) ? data : [data]
-
-      const spots: NowWeather[] = []
-      /* Una casella una scheda: se due posti dell'elenco finiscono nella stessa
-         maglia del modello, il secondo si perde. Perdere una scheda è meno
-         grave che mostrarne due identiche, che chi legge chiama un guasto — e
-         `NOW_SPOTS` è scelto perché non succeda, questa è la rete sotto. */
-      const cells = new Set<string>()
-      list.forEach((entry, i) => {
-        const c = entry.current
-        const spot = NOW_SPOTS[i]
-        if (!c || !spot) return
-        const cell = `${entry.latitude},${entry.longitude}`
-        if (cells.has(cell)) return
-        cells.add(cell)
-        spots.push({
-          place: spot.name,
-          time: c.time,
-          temp: Math.round(c.temperature_2m),
-          feels: Math.round(c.apparent_temperature),
-          humidity: Math.round(c.relative_humidity_2m),
-          rain: c.precipitation ?? 0,
-          code: c.weather_code ?? 0,
-          wind: Math.round(c.wind_speed_10m),
-          gust: Math.round(c.wind_gusts_10m),
-          windFrom: c.wind_direction_10m ?? 0,
-        })
-      })
-
-      if (spots.length > 0) nowCache = { at: Date.now(), spots }
-      return spots
-    } catch {
-      return []
+    for (const model of [NOW_MODEL, null]) {
+      try {
+        const spots = await askNow(model)
+        if (spots.length > 0) {
+          nowCache = { at: Date.now(), spots }
+          return spots
+        }
+      } catch {
+        /* Rete caduta o risposta illeggibile: si prova il ripiego, e se casca
+           anche quello si torna con l'elenco vuoto. */
+      }
     }
+    return []
   })().finally(() => {
     nowPending = null
   })

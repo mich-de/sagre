@@ -54,14 +54,28 @@ npm run dev       # http://localhost:5173/sagre/  e  /sagre/admin
   la riga vorrebbe dire una domanda a Open-Meteo per ognuna delle cento sagre della griglia.
   Le icone del cielo stanno in **una** tabella (`components/SkyIcon.tsx`), non una per posto che
   mostra il tempo.
-- **Un posto per cella della griglia, nel bollettino di adesso.** Open-Meteo gira su maglie da
-  qualche chilometro: Vico Equense e Sorrento cadono nella **stessa casella** e ricevono numeri
-  identici, e due schede gemelle sullo schermo si leggono come un guasto, non come una misura. Per
-  questo Vico Equense — che di sagre ne ha tante — non è in `NOW_SPOTS`. Chi tocca quell'elenco
-  verifichi gli scontri: la risposta contiene `latitude`/`longitude` **agganciate alla griglia**, e
-  basta guardare se si ripetono. `nowAround` scarta i doppioni per sicurezza, ma è una rete, non il
-  progetto. Le sette coordinate stanno in **una** richiesta: l'endpoint le accetta in fila e
-  risponde con un elenco nello stesso ordine.
+- **Nel bollettino di adesso una casella è una scheda, e la scheda dice quali paesi copre.**
+  Prima i doppioni si **scartavano**, e Vico Equense stava fuori da `NOW_SPOTS` di proposito: due
+  schede coi numeri identici si leggono come un guasto. Sbagliato — così Meta, Piano di Sorrento e
+  Sant'Agnello non comparivano affatto, e chi ci abita non trovava il suo paese, che è il difetto
+  peggiore dei due. Ora `NOW_SPOTS` ha i quattordici comuni della penisola e della costiera, e
+  `groupByCell` mette gli altri nomi della stessa maglia in `NowWeather.also`, che la scheda scrive
+  sotto il titolo: la misura resta **una**, ma si sa per chi vale. Niente numeri finti per far
+  quadrare i nomi, nessun nome sparito per far quadrare i numeri.
+  **L'ordine di `NOW_SPOTS` conta**: dentro una casella vince il primo, quindi il nome più conosciuto
+  va prima — Sorrento apre l'elenco invece di stare al suo posto geografico proprio per questo.
+- **Il modello del bollettino di adesso è `dmi_seamless`, non il predefinito**, e la scelta è
+  misurata (25 agosto 2026, ventidue paesi, confrontando **i numeri** e non le coordinate):
+  `best_match` dà 10 caselle su 22 e mette insieme Gragnano e Positano, che stanno ai due lati della
+  montagna; `dmi_seamless` dà 12 letture su 12 distinte con tutti i campi. **`meteofrance_seamless`
+  è una trappola da non riprovare**: restituisce 20 coordinate su 20 tutte diverse — sono quelle
+  *chieste*, non quelle agganciate — e dietro ha nove letture su dodici, quindi il controllo dei
+  doppioni smette di funzionare senza dirlo. `nowAround` prova il modello fine e poi **ripiega senza
+  modello**: legare la sezione a un fornitore nazionale solo vorrebbe dire farla svanire il giorno
+  che è fuori servizio, e un bollettino grossolano batte un buco. Vale solo per l'adesso: `forecast`
+  resta sul predefinito, perché ai sette giorni i modelli ad area limitata non arrivano.
+  Le quattordici coordinate stanno in **una** richiesta: l'endpoint le accetta in fila e risponde
+  con un elenco nello stesso ordine.
 - **Il nome del sito si scrive in un posto solo**, `lib/site.ts`: era a mano in cinque (testata,
   testata di stampa, titolo della home, firma dei file .ics, `index.html`) e cambiarlo voleva dire
   trovarli tutti. `SITE_WHERE_SHORT`/`_REST` esistono perché sul telefono «e dintorni» non ci sta e

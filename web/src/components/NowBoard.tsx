@@ -8,9 +8,11 @@ import { GUSTY_KMH, skyOf, windFrom, type NowWeather } from '../lib/weather'
  * adesso. È la domanda di chi ha la macchina in cortile e sta decidendo se
  * scendere in piazza stasera: quanto fa, quanto tira, se piove.
  *
- * Sette posti e non uno perché in mezzo alla penisola ci sono i monti Lattari:
- * a Sorrento può esserci il sole e a Tramonti l'acqua nello stesso quarto d'ora.
- * Una sola misura per tutti direbbe la cosa giusta a metà della gente.
+ * La penisola comune per comune, e non un posto solo, perché in mezzo ci sono i
+ * monti Lattari: a Sorrento può esserci il sole e a Tramonti l'acqua nello
+ * stesso quarto d'ora. Una misura per tutti direbbe la cosa giusta a metà della
+ * gente — e chi abita a Meta o a Sant'Agnello, se il suo paese non c'è, non ha
+ * modo di sapere quale delle schede riguarda lui.
  *
  * Tutta la sezione è `no-print`: su un foglio appeso al muro il tempo di adesso
  * è la prima cosa che diventa falsa, ed è falsa entro un'ora.
@@ -28,7 +30,10 @@ export function NowBoard() {
       <section className="no-print mb-8">
         <Masthead />
         <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
+          {/* Otto e non quattro: le schede vere sono una dozzina, e uno
+              scheletro molto più corto di quel che arriva fa saltare la pagina
+              sotto le mani nel momento in cui i numeri compaiono. */}
+          {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="h-[7.5rem] animate-pulse border-2 border-ink/20 bg-paper-2" />
           ))}
         </div>
@@ -40,6 +45,7 @@ export function NowBoard() {
      ricalcola a scatti di un quarto d'ora, e scrivere "adesso" su un dato di
      venti minuti fa è una bugia piccola ma è una bugia. */
   const measured = spots[0]?.time.slice(11, 16)
+  const grouped = spots.some((s) => s.also.length > 0)
 
   return (
     <section style={{ animationDelay: '30ms' }} className="no-print mb-8 animate-ink-rise">
@@ -52,8 +58,12 @@ export function NowBoard() {
       </div>
 
       <p className="mt-2 text-[0.6rem] leading-relaxed tracking-[0.06em] text-ink-faint">
-        Rilevazioni Open-Meteo su una griglia di qualche chilometro: è il tempo del paese, non quello
-        della piazza. Si aggiorna da sé ogni dieci minuti.
+        Rilevazioni Open-Meteo su una griglia di un paio di chilometri: è il tempo del paese, non
+        quello della piazza. Si aggiorna da sé ogni dieci minuti.
+        {/* Detto solo quando succede: spiegare un raggruppamento che non c'è
+            fa venire il dubbio che ci sia. */}
+        {grouped &&
+          ' Dove due paesi cadono nella stessa maglia la misura è una, e la scheda li nomina tutti invece di farne sparire uno.'}
       </p>
     </section>
   )
@@ -98,7 +108,20 @@ function SpotCard({ spot }: { spot: NowWeather }) {
         raining || gusty ? 'border-vermiglio' : ''
       }`}
     >
-      <p className="truncate font-display text-sm leading-none font-black text-ink">{spot.place}</p>
+      {/* Il nome va a capo invece di finire nei tre puntini: qui trovare il
+          proprio paese è tutto il punto della sezione, e «Castellammare di
+          S…» lo si trova male. */}
+      <div className="min-w-0">
+        <p className="font-display text-sm leading-tight font-black text-ink">{spot.place}</p>
+        {/* I paesi che stanno nella stessa maglia del modello. Prima venivano
+            scartati e non comparivano affatto; scritti qui, la misura è una
+            sola e si sa per chi vale. */}
+        {spot.also.length > 0 && (
+          <p className="mt-0.5 text-[0.55rem] leading-tight tracking-[0.04em] text-ink-faint">
+            anche {spot.also.join(', ')}
+          </p>
+        )}
+      </div>
 
       <div className="flex items-center gap-1.5 border-b border-ink/15 pb-1.5">
         <SkyIcon code={spot.code} size={18} className={raining ? 'text-vermiglio' : 'text-ink'} />
