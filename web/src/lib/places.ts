@@ -12,25 +12,50 @@ import type { CalendarEvent } from './googleCalendar'
 const COUNTRY = /^(italia|italy|it)$/i
 /** "80067 Sorrento NA" — CAP davanti, sigla della provincia in fondo. */
 const CAP_TOWN = /^\d{5}\s+(.+?)(?:\s+[A-Z]{2})?$/
+/** La parentesi in coda è un segmento come gli altri: o la sigla della
+ *  provincia — "Gragnano (NA)" — o il comune di cui la frazione fa parte,
+ *  "Torca (Massa Lubrense)". Trattarla da virgola fa anche finire "Moiano
+ *  (Vico Equense)" e "Moiano, Vico Equense" nello stesso paese, invece di due
+ *  pallini a pochi metri l'uno dall'altro. */
+const PARENS = /[()]/g
+/** La sigla della provincia da sola: "Sorrento, NA, Italia", "Maiori (Sa)".
+ *  Non è un paese, e chiesta a un geocoder diventa un posto a caso dall'altra
+ *  parte del mondo — "NA", senza filtro di nazione, risponde Ban Na in
+ *  Thailandia. Restano fuori i due comuni italiani di due lettere, Ne e Re:
+ *  non sono da queste parti, e la sigla è mille volte più probabile. */
+const SIGLA = /^[a-z]{2}$/i
 /** Un segmento senza lettere è un numero civico, non un paese. */
 const HAS_LETTERS = /\p{L}/u
 /** Segni diacritici, da togliere prima di confrontare due nomi di paese. */
 const MARKS = /\p{M}/gu
 
-/** Il paese, ricavato dal campo luogo. `null` se non se ne cava niente. */
-export function placeOf(location: string): string | null {
+/** I pezzi utili del campo luogo, **dal più promettente al meno**: si legge da
+ *  destra, perché l'ultimo segmento di un indirizzo è il comune, e si buttano
+ *  la nazione, le sigle di provincia e i numeri civici.
+ *
+ *  Il primo è il paese. Gli altri servono a chi può riprovare: le previsioni,
+ *  che di un indirizzo sconosciuto tentano il pezzo successivo — "Gete,
+ *  Tramonti (SA), Costiera Amalfitana" non ha il comune in fondo, ma ce l'ha
+ *  in mezzo. */
+export function placeSegments(location: string): string[] {
   const parts = location
+    .replace(PARENS, ',')
     .split(',')
     .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !COUNTRY.test(s))
+    .filter((s) => s.length > 0 && !COUNTRY.test(s) && !SIGLA.test(s))
 
-  /* Si legge da destra: l'ultimo segmento utile dell'indirizzo è il comune. */
+  const found: string[] = []
   for (let i = parts.length - 1; i >= 0; i--) {
     const withCap = CAP_TOWN.exec(parts[i])
     const candidate = (withCap ? withCap[1] : parts[i]).trim()
-    if (HAS_LETTERS.test(candidate)) return candidate
+    if (HAS_LETTERS.test(candidate)) found.push(candidate)
   }
-  return null
+  return found
+}
+
+/** Il paese, ricavato dal campo luogo. `null` se non se ne cava niente. */
+export function placeOf(location: string): string | null {
+  return placeSegments(location)[0] ?? null
 }
 
 /** Chiave di confronto: niente accenti, niente maiuscole, niente doppi spazi. */

@@ -38,6 +38,22 @@ npm run dev       # http://localhost:5173/sagre/  e  /sagre/admin
 - **Il router è un `HashRouter`, e la query sta *dentro* il cancelletto.** `useHomeFilters` legge da
   `useSearchParams`, che sotto `HashRouter` guarda `#/?…`. Ogni indirizzo costruito a mano va scritto
   `${BASE_URL}#/?e=…`: la query messa prima del `#` non arriva a nessuno, in silenzio.
+- **Nel campo luogo la parentesi è una virgola, e la sigla non è un paese.** «Gragnano (NA)» non lo
+  trova nessun geocoder, e «Sorrento, NA, Italia» si riduce al paese «NA», che senza filtro di
+  nazione è **Ban Na in Thailandia**: un pallino a novemila chilometri e, di conseguenza, nessuna
+  previsione. `placeSegments` tratta `()` da virgola, butta nazione e sigle di provincia, e
+  restituisce i pezzi **dal più promettente al meno** — il primo è il paese, gli altri servono a chi
+  può riprovare (le previsioni). Sulla richiesta va sempre `countryCode=IT`: fuori dall'Italia non
+  c'è niente in cartellone, e un «non lo so» si vede subito, un pallino in Thailandia no.
+- **Le coordinate stanno in `localStorage` per sempre, quindi la chiave ha una versione.**
+  `sagre.geo.v2.`, e `geocode` alla prima domanda spazza via il prefisso vecchio. Correggere il
+  codice non basta: chi ha già aperto il cartellone si ricorda l'errore e non richiede più niente.
+  Se cambia il modo di ricavare il paese, **cambia anche la versione**.
+- **Il meteo lo chiede chi costruisce la riga, non la riga.** `EventCard` ha una fessura
+  `weather?: ReactNode`; nei pannelli Oggi e Domani ci si infila `DayWeatherTag`. Agganciarlo dentro
+  la riga vorrebbe dire una domanda a Open-Meteo per ognuna delle cento sagre della griglia.
+  Le icone del cielo stanno in **una** tabella (`components/SkyIcon.tsx`), non una per posto che
+  mostra il tempo.
 - **La logica non sta nei componenti.** Filtri, date, categorie, luoghi, ICS, meteo e locandine
   vivono in `lib/`, così barra dei filtri, home e stampa condividono lo stesso comportamento.
 - **Firestore soltanto** per le schede: `posters/{eventId}` tiene la miniatura, le immagini piene
@@ -57,7 +73,7 @@ npm run dev       # http://localhost:5173/sagre/  e  /sagre/admin
 | --- | --- | --- |
 | `dates.ts` | tutta l'aritmetica del calendario | `parseEventDate`, `eventStart`, `eventEndInclusive`, `eventEndExclusive`, `startOfDay`, `addDays`, `isoDay`, `daysBetween`, `weekendWindow`, `isOver`, `isOngoing`, `occursOn`, `isMultiDay`, `formatDuration`, `groupByMonth` |
 | `filters.ts` | finestre temporali, ordinamento, categorie accese | `inTimeRange`, `sortEvents`, `toggleCategory`, `RANGES`, `SORTS`, `TimeRange`, `CalendarViewMode` |
-| `places.ts` | il paese ricavato dal testo libero del campo luogo | `placeOf`, `normalizePlace`, `groupByPlace`, `collectPlaces`, `inPlace` |
+| `places.ts` | il paese ricavato dal testo libero del campo luogo | `placeSegments`, `placeOf`, `normalizePlace`, `groupByPlace`, `collectPlaces`, `inPlace` |
 | `categorize.ts` | sette categorie con colore, indovinate dal titolo | `categorize`, `CATEGORIES` |
 | `googleCalendar.ts` | lettura del calendario condiviso | `CalendarEvent`, `toEvent` |
 | `calendarWrite.ts` | scrittura sul calendario | `createEvent`, `updateEvent`, `deleteEvent`, `createMany`, `validateDraft`, `emptyDraft`, `EventDraft` |
@@ -79,7 +95,8 @@ propria festa, da dove arrivano i dati — nessuna logica, riusa `CATEGORIES` e 
 `pages/Home.tsx` (cartellone, tre pannelli Oggi/Domani/Fine settimana, legenda
 cliccabile, «Portalo via»), `CalendarView` (FullCalendar), `AgendaList`, `EventCard`, `EventModal`,
 `FilterBar` (tre viste: griglia, elenco, mappa), `PlacesMap` (Leaflet, caricato con `React.lazy`),
-`MonthRail`, `NoResults`, `PrintMasthead`, `WeatherStrip`, `DateRange`, `BackToTop`, `Header`.
+`MonthRail`, `NoResults`, `PrintMasthead`, `WeatherStrip`, `SkyIcon`, `DayWeatherTag`, `DateRange`,
+`BackToTop`, `Header`.
 
 **Ufficio manifesti** — `pages/Admin.tsx` più `admin/`: `EventForm`, `BulkActions`, `BulkAdd`,
 `CopyFromDialog`, `RepeatNextYear`, `ProgrammaEditor`, `TodoPanel`, `PartToggle`.
@@ -106,6 +123,18 @@ I valori d'ambiente stanno in `web/.env`, mai nel repo, e nei secret di GitHub A
   `web/public/CNAME` con dentro il dominio (il deploy passa da Actions, il file deve stare
   nell'artefatto), i record DNS dal registrar, e `base: '/'` in `vite.config.ts` al posto di
   `'/sagre/'` — il resto si aggiusta da solo, perché gli indirizzi passano tutti da `BASE_URL`.
+- **Undici luoghi da correggere a mano sul calendario**, non nel codice: il campo non contiene il
+  comune, e senza comune non c'è né pallino né meteo. Misurato il 25 agosto 2026 su 63 luoghi
+  distinti — gli altri 52 cadono tutti entro 16 km dalla penisola (Ischia 44, ed è giusto).
+  Il caso peggiore è `Cappella di San Sebastiano a Canale (Pastena)`: **Pastena è anche un comune in
+  provincia di Frosinone**, e il pallino finisce a 123 km. Basta aggiungere il comune in coda, come
+  già fa `Cappella di Canale, Pastena, Massa Lubrense` che infatti è giusto. Gli altri dieci
+  (`Penisola Sorrentina`, `Costiera Amalfitana` da «Gete, Tramonti (SA), Costiera Amalfitana`,
+  `Marina della Lobra`, `Borgo di Schiazzano`, `Fontana del Cerriglio`, `Spiaggia di Meta`,
+  `Spiaggia Grande di Positano`, `Piazza S. Agata sui Due Golfi`,
+  `Monastero del SS. Rosario di Monticchio`, `Terrazza della Chiesa di Marciano`) oggi non danno un
+  posto sbagliato, danno **niente**, che è meno grave ma è comunque una sagra fuori dalla mappa.
+  Una tabella frazione→comune nel codice è la strada sbagliata: si scrive una volta e poi invecchia.
 - Il bundle principale supera i 500 kB: FullCalendar e Firebase sono i due grossi, e potrebbero
   seguire la strada di Leaflet (`React.lazy`).
 - Vulnerabilità: nessuna. `npm audit` è pulito dal 24 agosto 2026 (`nanoid` risolta con

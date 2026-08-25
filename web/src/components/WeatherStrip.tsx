@@ -1,18 +1,9 @@
-import {
-  Sun,
-  CloudSun,
-  Cloud,
-  CloudFog,
-  CloudRain,
-  CloudLightning,
-  Snowflake,
-  Umbrella,
-  Droplets,
-} from 'lucide-react'
+import { Umbrella, Droplets } from 'lucide-react'
 import type { CalendarEvent } from '../lib/googleCalendar'
 import { useWeather } from '../hooks/useWeather'
+import { SkyIcon } from './SkyIcon'
 import { isSameDay, parseEventDate } from '../lib/dates'
-import { isWet, skyOf, type DayWeather, type SkyKind } from '../lib/weather'
+import { isWet, skyOf, type DayWeather } from '../lib/weather'
 
 /* ---------------------------------------------------------------------------
  * "Che si fa se piove" è la prima domanda che si fa a un organizzatore, e
@@ -20,16 +11,6 @@ import { isWet, skyOf, type DayWeather, type SkyKind } from '../lib/weather'
  * alla data, non in un'altra scheda del telefono: una fila di giorni, uno per
  * ogni sera di festa, e una riga sola quando l'acqua è probabile davvero.
  * ------------------------------------------------------------------------- */
-
-const ICON: Record<SkyKind, typeof Sun> = {
-  sereno: Sun,
-  nuvole: CloudSun,
-  coperto: Cloud,
-  nebbia: CloudFog,
-  pioggia: CloudRain,
-  temporale: CloudLightning,
-  neve: Snowflake,
-}
 
 /** Sotto questa soglia la percentuale è rumore: dirla a chi legge vuol dire
  *  solo mettergli un dubbio addosso per niente. */
@@ -95,7 +76,6 @@ export function WeatherStrip({ event }: { event: CalendarEvent }) {
 
 function DayBox({ day }: { day: DayWeather }) {
   const sky = skyOf(day.code)
-  const Icon = ICON[sky.kind]
   const rain = day.rain ?? 0
   const wet = isWet(day)
 
@@ -109,8 +89,7 @@ function DayBox({ day }: { day: DayWeather }) {
       <span className="text-[0.58rem] font-bold tracking-[0.12em] text-ink-soft uppercase">
         {dayLabel(day.date)}
       </span>
-      <Icon size={22} className={wet ? 'text-vermiglio' : 'text-ink'} aria-hidden />
-      <span className="sr-only">{sky.label}</span>
+      <SkyIcon size={22} code={day.code} className={wet ? 'text-vermiglio' : 'text-ink'} />
       <span className="font-display text-base leading-none font-black text-ink">
         {day.max}°
         <span className="ml-1 font-body text-[0.65rem] font-semibold text-ink-faint">{day.min}°</span>

@@ -11,13 +11,19 @@ interface EventCardProps {
   onSelect: (event: CalendarEvent) => void
   /** Nel riquadro "oggi e domani" la data è già nell'intestazione. */
   hideDate?: boolean
+  /** Una voce in più nella riga dei dettagli, accanto all'ora e al luogo. La
+   *  riga di cartellone la ospita senza sapere cos'è: il meteo lo va a chiedere
+   *  chi la costruisce (`DayWeatherTag` nei pannelli di oggi e domani), così
+   *  l'elenco lungo e la griglia non si portano dietro una domanda al servizio
+   *  delle previsioni per ognuna delle cento sagre in cartellone. */
+  weather?: React.ReactNode
 }
 
 const MONTH = (d: Date) => d.toLocaleDateString('it-IT', { month: 'short' }).replace('.', '')
 
 /** Riga di cartellone: fascetta di categoria, miniatura, data cubitale.
  *  La usano l'elenco su misura e il riquadro di oggi e domani. */
-export function EventCard({ event, extras, onSelect, hideDate }: EventCardProps) {
+export function EventCard({ event, extras, onSelect, hideDate, weather }: EventCardProps) {
   const category = categorize(event.title, event.description, extras.category)
   const start = eventStart(event)
   const ongoing = isOngoing(event)
@@ -92,6 +98,9 @@ export function EventCard({ event, extras, onSelect, hideDate }: EventCardProps)
         <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[0.7rem] text-ink-soft">
           {time && <span className="font-semibold tabular-nums">{time}</span>}
           {hideDate && !time && <span className="font-semibold">Tutto il giorno</span>}
+          {/* Davanti al luogo: il luogo è l'unica voce che si accorcia con i tre
+              puntini, e quel che le sta dietro rischia di non vedersi mai. */}
+          {weather}
           {!hideDate && isMultiDay(event) && (
             <span className="flex items-center gap-1 whitespace-nowrap">
               <CalendarRange size={11} />

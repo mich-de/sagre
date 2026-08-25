@@ -19,6 +19,7 @@ import { useHomeFilters } from '../hooks/useHomeFilters'
 import { CalendarView } from '../components/CalendarView'
 import { AgendaList } from '../components/AgendaList'
 import { EventCard } from '../components/EventCard'
+import { DayWeatherTag } from '../components/DayWeatherTag'
 import { EventModal } from '../components/EventModal'
 import { DateRange } from '../components/DateRange'
 import { FilterBar } from '../components/FilterBar'
@@ -36,6 +37,7 @@ import {
   eventEndExclusive,
   groupByMonth,
   isOngoing,
+  isoDay,
   formatDuration,
   isMultiDay,
   occursOn,
@@ -214,6 +216,7 @@ export function Home() {
             events={today}
             extrasOf={extrasOf}
             onSelect={setSelected}
+            weatherDay={isoDay(new Date())}
             accent
           />
           <DayPanel
@@ -222,6 +225,7 @@ export function Home() {
             events={tomorrow}
             extrasOf={extrasOf}
             onSelect={setSelected}
+            weatherDay={isoDay(addDays(new Date(), 1))}
           />
           <DayPanel
             title="Fine settimana"
@@ -529,6 +533,7 @@ function DayPanel({
   events,
   extrasOf,
   onSelect,
+  weatherDay,
   accent,
   onMore,
 }: {
@@ -539,6 +544,12 @@ function DayPanel({
   events: CalendarEvent[]
   extrasOf: (eventId: string) => EventExtras
   onSelect: (event: CalendarEvent) => void
+  /** Il giorno di cui mostrare il tempo su ogni riga, aaaa-mm-gg. Lo passano
+   *  solo i pannelli di un giorno solo: nel fine settimana ce ne sono tre, e un
+   *  numero al posto di tre direbbe una cosa per un'altra. Va dato da fuori
+   *  perché la sagra può essere cominciata ieri: le previsioni partono da oggi,
+   *  e la prima che hanno in mano non è quella del pannello. */
+  weatherDay?: string
   accent?: boolean
   /** Porta al cartellone filtrato: serve dove il pannello copre più giorni e
    *  può non bastare a contenerli. */
@@ -571,6 +582,7 @@ function DayPanel({
                    Nel fine settimana serve: sapere se è sabato o domenica è
                    metà dell'informazione. */
                 hideDate={!onMore}
+                weather={weatherDay && <DayWeatherTag event={event} day={weatherDay} />}
               />
             </li>
           ))}

@@ -1,5 +1,5 @@
 import type { CalendarEvent } from './googleCalendar'
-import { placeOf, normalizePlace } from './places'
+import { placeSegments, normalizePlace } from './places'
 import { eventStart, eventEndInclusive, isoDay, startOfDay, addDays } from './dates'
 
 /* ---------------------------------------------------------------------------
@@ -20,7 +20,14 @@ const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast'
  *  e va detto, altrimenti sembra un pezzo di pagina che non ha caricato. */
 export const FORECAST_DAYS = 16
 
-const GEO_KEY = 'sagre.geo.'
+/* `v2` e non più `sagre.geo.`: la prima versione ha salvato "per sempre" anche
+   gli sbagli. Chiedeva "Gragnano (NA)", che non trova nessuno, e "NA", che
+   senza filtro di nazione risponde Ban Na in Thailandia — un pallino sulla
+   mappa a novemila chilometri da dove si mangia. Correggere il codice non
+   basta: senza cambiare il prefisso, i telefoni che hanno già aperto il
+   cartellone si ricordano l'errore e non richiedono più niente. */
+const GEO_KEY = 'sagre.geo.v2.'
+const GEO_KEY_OLD = 'sagre.geo.'
 const FORECAST_TTL_MS = 60 * 60 * 1000
 
 export interface DayWeather {
@@ -77,18 +84,6 @@ export function isWet(day: DayWeather): boolean {
 
 /* -------------------------------------------------------- il paese -- */
 
-/** Chiavi di ricerca, dalla più promettente alla più generica: prima il paese
- *  ricavato dall'indirizzo, poi il primo pezzo del campo luogo per chi ha
- *  scritto solo "Positano" senza virgole. */
-function searchKeys(location: string): string[] {
-  const keys: string[] = []
-  const place = placeOf(location)
-  if (place) keys.push(place)
-  const head = location.split(',')[0]?.trim()
-  if (head && (!place || normalizePlace(head) !== normalizePlace(place))) keys.push(head)
-  return keys
-}
-
 function readStore(key: string): string | null {
   try {
     return localStorage.getItem(key)
@@ -107,12 +102,37 @@ function writeStore(key: string, value: string): void {
   }
 }
 
+/* Le coordinate sbagliate della prima versione vanno buttate, non solo
+   ignorate: restare in archivio a occupare posto è il meno, il problema è che
+   un domani qualcuno rimetta il vecchio prefisso e le ritrovi. Una volta per
+   sessione, alla prima domanda. */
+let sweptOldGeo = false
+function sweepOldGeo(): void {
+  if (sweptOldGeo) return
+  sweptOldGeo = true
+  try {
+    const doomed: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      /* `GEO_KEY` comincia per `GEO_KEY_OLD`: senza la seconda condizione la
+         pulizia si porterebbe via anche le coordinate nuove. */
+      if (key?.startsWith(GEO_KEY_OLD) && !key.startsWith(GEO_KEY)) doomed.push(key)
+    }
+    for (const key of doomed) localStorage.removeItem(key)
+  } catch {
+    /* Navigazione anonima: non c'è niente da pulire. */
+  }
+}
+
 const geoPending = new Map<string, Promise<Coords | null>>()
 
 /** Coordinate del paese. `null` quando il campo luogo non è un posto che il
  *  servizio conosce — succede con "Oratorio parrocchiale" e simili. */
 export async function geocode(location: string): Promise<Coords | null> {
-  const keys = searchKeys(location)
+  sweepOldGeo()
+  /* Le chiavi da provare in fila: il paese, e se quello non lo conosce nessuno
+     i pezzi dell'indirizzo che gli stanno intorno. */
+  const keys = placeSegments(location)
   if (keys.length === 0) return null
 
   const cacheKey = GEO_KEY + normalizePlace(keys[0])
@@ -130,7 +150,13 @@ export async function geocode(location: string): Promise<Coords | null> {
 
   const request = (async () => {
     for (const key of keys) {
-      const url = `${GEO_URL}?name=${encodeURIComponent(key)}&count=1&language=it&format=json`
+      /* `countryCode=IT`: senza, il servizio cerca in tutto il mondo e a una
+         domanda storta risponde con l'altro emisfero invece di dire "non lo
+         so". Un cartellone di sagre non ha niente fuori dall'Italia, e un
+         "non lo so" si vede subito, un pallino in Thailandia no. */
+      const url =
+        `${GEO_URL}?name=${encodeURIComponent(key)}` +
+        '&count=1&language=it&format=json&countryCode=IT'
       try {
         const res = await fetch(url)
         if (!res.ok) continue
