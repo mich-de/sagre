@@ -1,6 +1,7 @@
 import { RANGES } from '../lib/filters'
 import { CATEGORIES } from '../lib/categorize'
 import type { HomeFilters } from '../hooks/useHomeFilters'
+import { SITE_WHERE } from '../lib/site'
 
 /* ---------------------------------------------------------------------------
  * Testata che esiste solo sulla carta. Sullo schermo la fa il componente
@@ -54,8 +55,14 @@ export function PrintMasthead({
     <div className="hidden print:block">
       <h1 className="font-display text-4xl leading-none font-black tracking-[-0.02em]">
         Eventi <span className="font-normal italic">&amp;</span> Sagre
+        {/* Sulla carta il dove non si accorcia mai: chi trova il foglio appeso
+            in una bacheca deve capire di quale pezzo di costa si parla senza
+            chiedere a nessuno. */}
+        <span className="mt-1 block font-display text-lg font-normal italic">
+          in {SITE_WHERE}
+        </span>
       </h1>
-      <p className="mt-1 text-[0.7rem] font-semibold tracking-[0.14em] uppercase">
+      <p className="mt-2 text-[0.7rem] font-semibold tracking-[0.14em] uppercase">
         {describe(filters, shown, total)}
       </p>
       <div className="mt-2 mb-4 border-t-[3px] border-b border-black" />

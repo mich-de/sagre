@@ -21,6 +21,7 @@ import { AgendaList } from '../components/AgendaList'
 import { EventCard } from '../components/EventCard'
 import { DayWeatherTag } from '../components/DayWeatherTag'
 import { NowBoard } from '../components/NowBoard'
+import { SITE_TITLE, SITE_WHERE } from '../lib/site'
 import { EventModal } from '../components/EventModal'
 import { DateRange } from '../components/DateRange'
 import { FilterBar } from '../components/FilterBar'
@@ -106,8 +107,24 @@ export function Home() {
     [filtered, selected]
   )
 
-  const today = useMemo(() => events.filter((e) => occursOn(e, new Date())), [events])
-  const tomorrow = useMemo(() => events.filter((e) => occursOn(e, addDays(new Date(), 1))), [events])
+  /* Ordinati, non solo filtrati. Finché il pannello mostrava tutto, l'ordine
+     era una questione di garbo; da quando ne mostra tre e annuncia il resto,
+     *quali* tre è una decisione, e va presa qui invece di lasciarla all'ordine
+     in cui il calendario ha risposto. */
+  const today = useMemo(
+    () => sortEvents(events.filter((e) => occursOn(e, new Date())), 'prossimi'),
+    [events]
+  )
+  const tomorrow = useMemo(
+    () => sortEvents(events.filter((e) => occursOn(e, addDays(new Date(), 1))), 'prossimi'),
+    [events]
+  )
+
+  /* Le due date dei pannelli di un giorno solo, in aaaa-mm-gg. Le vogliono in
+     due: il meteo, per pescare la previsione di quel giorno e non la prima che
+     trova, e il «vedi tutti», per costruirsi l'intervallo. */
+  const todayIso = isoDay(new Date())
+  const tomorrowIso = isoDay(addDays(new Date(), 1))
 
   /* Il fine settimana in arrivo, o quello in corso se ci siamo già dentro. Chi
      guarda il cartellone di giovedì sta decidendo cosa fare sabato: è la
@@ -172,6 +189,14 @@ export function Home() {
           Eventi
           <br />
           <span className="font-normal italic text-vermiglio">&amp;</span> Sagre
+          {/* Il dove sta dentro il titolo, non accanto: staccato in un `<p>`,
+              chi legge lo schermo con la voce sente un titolo che non dice dove
+              siamo. Qui va rimesso a mano tutto quello che l'`h1` stringe —
+              corpo, interlinea, spaziatura — perché sono misure da lettera
+              cubitale e su una riga di corsivo si vedrebbero tutte. */}
+          <span className="mt-3 block font-display text-xl leading-tight font-normal italic tracking-normal text-ink-soft sm:mt-4 sm:text-3xl">
+            in {SITE_WHERE}
+          </span>
         </h1>
 
         <div className="rule-double mt-6" />
@@ -216,14 +241,20 @@ export function Home() {
           style={{ animationDelay: '60ms' }}
           className="no-print mb-8 grid animate-ink-rise gap-4 sm:grid-cols-2 lg:grid-cols-3"
         >
+          {/* Il "vedi tutti" di Oggi e Domani non ha bisogno di una finestra
+              nuova nei filtri: `intervallo` con la stessa data ai due capi è
+              già "solo quel giorno", e per sovrapposizione si porta dietro
+              anche le sagre lunghe cominciate prima. */}
           <DayPanel
             title="Oggi"
             when={dayLabel(new Date())}
             events={today}
             extrasOf={extrasOf}
             onSelect={setSelected}
-            weatherDay={isoDay(new Date())}
+            weatherDay={todayIso}
             accent
+            onMore={() => set({ range: 'intervallo', from: todayIso, to: todayIso, view: 'list' })}
+            moreLabel="Vedi tutto oggi"
           />
           <DayPanel
             title="Domani"
@@ -231,7 +262,11 @@ export function Home() {
             events={tomorrow}
             extrasOf={extrasOf}
             onSelect={setSelected}
-            weatherDay={isoDay(addDays(new Date(), 1))}
+            weatherDay={tomorrowIso}
+            onMore={() =>
+              set({ range: 'intervallo', from: tomorrowIso, to: tomorrowIso, view: 'list' })
+            }
+            moreLabel="Vedi tutto domani"
           />
           <DayPanel
             title="Fine settimana"
@@ -239,9 +274,13 @@ export function Home() {
             events={weekend.events}
             extrasOf={extrasOf}
             onSelect={setSelected}
+            /* Tre giorni: qui la data su ogni riga serve, e il meteo di un
+               giorno solo direbbe una cosa per un'altra. */
+            spansDays
             /* Sul telefono i pannelli stanno uno sotto l'altro e questo è il
                terzo: la griglia lo affianca solo dove c'è spazio davvero. */
             onMore={() => set({ range: 'weekend', view: 'list' })}
+            moreLabel="Vedi il fine settimana"
           />
         </section>
       )}
@@ -438,7 +477,7 @@ export function Home() {
               onClick={() =>
                 downloadIcs(
                   filtered,
-                  place ? `Sagre a ${place}` : 'Eventi e Sagre',
+                  place ? `Sagre a ${place}` : SITE_TITLE,
                   icsFileName(place ? `sagre-${place}` : 'cartellone-sagre')
                 )
               }
@@ -533,6 +572,16 @@ export function Home() {
 
 /* ------------------------------------------------------- oggi e domani -- */
 
+/** Quante righe entrano in un pannello prima di rimandare all'elenco.
+ *
+ *  Serve per la forma della pagina, non per la pigrizia: i tre pannelli stanno
+ *  su una griglia, e la riga si allunga sul più alto dei tre. Un fine settimana
+ *  di ferragosto ne ha quindici e Oggi ne ha una: senza tetto, la colonna di
+ *  Oggi diventa un riquadro vuoto alto mezzo schermo. Tre righe e il resto in
+ *  fondo, detto a voce — «altri quattro» è un'informazione, un elenco tagliato
+ *  in silenzio è una bugia. */
+const PANEL_MAX = 3
+
 function DayPanel({
   title,
   when,
@@ -540,8 +589,10 @@ function DayPanel({
   extrasOf,
   onSelect,
   weatherDay,
+  spansDays,
   accent,
   onMore,
+  moreLabel,
 }: {
   title: string
   /** La data in chiaro arriva da fuori: ricavarla dal titolo ("Oggi" → adesso)
@@ -556,38 +607,71 @@ function DayPanel({
    *  perché la sagra può essere cominciata ieri: le previsioni partono da oggi,
    *  e la prima che hanno in mano non è quella del pannello. */
   weatherDay?: string
+  /** Il pannello copre più di un giorno, e allora su ogni riga la data serve:
+   *  sapere se è sabato o domenica è metà dell'informazione. Sta scritto qui e
+   *  non dedotto da `weatherDay` perché sono due cose diverse che oggi vanno
+   *  insieme per caso: il giorno che il meteo non risponde, le date non devono
+   *  ricomparire da sole. */
+  spansDays?: boolean
   accent?: boolean
-  /** Porta al cartellone filtrato: serve dove il pannello copre più giorni e
-   *  può non bastare a contenerli. */
+  /** Porta al cartellone filtrato sullo stesso periodo del pannello. Ce l'hanno
+   *  tutti e tre, perché tutti e tre possono avere più righe di quante ne
+   *  mostrano. */
   onMore?: () => void
+  /** Come si chiama quel posto dove si va, quando non c'è niente di nascosto da
+   *  annunciare. */
+  moreLabel?: string
 }) {
+  const shown = events.slice(0, PANEL_MAX)
+  const hidden = events.length - shown.length
   return (
     /* `min-w-0`: senza, la cella della griglia non scende sotto la larghezza
        del titolo più lungo — che essendo su una riga sola non va a capo — e la
        pagina prende mezzo schermo di scorrimento laterale sul telefono. */
-    <div className={`ink-box-sm min-w-0 p-3 ${accent ? 'border-vermiglio' : ''}`}>
-      <div className="flex items-baseline justify-between gap-2 border-b-2 border-ink/20 pb-2">
-        <h2 className="font-display text-lg leading-none font-black text-ink">{title}</h2>
-        <span className="eyebrow">{when}</span>
+    /* `flex flex-col`: la griglia tira i tre riquadri alla stessa altezza, e
+       così il piede — «altri quattro», «vedi il fine settimana» — si appoggia
+       in basso invece di restare attaccato all'ultima riga. I tre piedi
+       allineati sono la differenza tra tre riquadri e un cartellone. */
+    <div className={`ink-box-sm flex min-w-0 flex-col p-3 ${accent ? 'border-vermiglio' : ''}`}>
+      <div className="flex items-start justify-between gap-2 border-b-2 border-ink/20 pb-2">
+        {/* Titolo e data su due righe, non affiancati: «Fine settimana» e
+            «ven 28 – dom 30» nella stessa riga di una colonna stretta si
+            pestano i piedi, e a rimetterci è sempre la data. */}
+        <div className="min-w-0">
+          <h2 className="font-display text-lg leading-none font-black text-ink">{title}</h2>
+          <p className="eyebrow mt-1 truncate">{when}</p>
+        </div>
+
+        {/* Il numero timbrato: quante ce ne sono è la prima cosa che si vuole
+            sapere, e contare le righe a occhio non è un modo di saperlo. */}
+        {events.length > 0 && (
+          <span
+            className={`flex h-8 w-8 shrink-0 items-center justify-center border-2 border-ink font-display text-base leading-none font-black ${
+              accent ? 'bg-vermiglio text-paper-hi' : 'bg-paper-2 text-ink'
+            }`}
+          >
+            <span aria-hidden>{events.length}</span>
+            <span className="sr-only">
+              {events.length === 1 ? 'un appuntamento' : `${events.length} appuntamenti`}
+            </span>
+          </span>
+        )}
       </div>
 
       {events.length === 0 ? (
-        <p className="flex items-center gap-2 py-4 text-xs text-ink-faint">
-          <CalendarX size={14} />
+        <p className="flex items-center gap-2 py-3.5 text-xs text-ink-faint">
+          <CalendarX size={14} className="shrink-0" />
           Niente in programma.
         </p>
       ) : (
         <ul className="mt-2.5 space-y-2">
-          {events.map((event) => (
+          {shown.map((event) => (
             <li key={event.id}>
               <EventCard
                 event={event}
                 extras={extrasOf(event.id)}
                 onSelect={onSelect}
-                /* La data si nasconde dove il pannello è già un giorno solo.
-                   Nel fine settimana serve: sapere se è sabato o domenica è
-                   metà dell'informazione. */
-                hideDate={!onMore}
+                hideDate={!spansDays}
                 weather={weatherDay && <DayWeatherTag event={event} day={weatherDay} />}
               />
             </li>
@@ -596,13 +680,28 @@ function DayPanel({
       )}
 
       {onMore && events.length > 0 && (
-        <button
-          onClick={onMore}
-          className="tap group mt-2.5 flex w-full items-center justify-center gap-1.5 border-t-2 border-ink/20 pt-2.5 text-[0.6rem] font-bold tracking-[0.12em] uppercase text-ink-soft transition-colors hover:text-vermiglio"
-        >
-          Vedi il fine settimana
-          <ArrowRight size={12} className="transition-transform group-hover:translate-x-1" />
-        </button>
+        /* `mt-auto` sul contenitore e non sul bottone: sul bottone starebbe
+           accanto a un `mt-2.5`, e due margini uguali in Tailwind non si
+           decidono per ordine di scrittura — vince quello che sta più in basso
+           nel foglio di stile, che non è una cosa da indovinare. */
+        <div className="mt-auto pt-2.5">
+          <button
+            onClick={onMore}
+            className={`tap group flex w-full items-center justify-center gap-1.5 border-t-2 pt-2.5 text-[0.6rem] font-bold tracking-[0.12em] uppercase transition-colors hover:text-vermiglio ${
+              /* Quel che è nascosto si annuncia più forte di un semplice
+                 "vedi tutto": è l'unico caso in cui il pannello sta tenendo
+                 qualcosa per sé, e chi legge deve accorgersene. */
+              hidden > 0 ? 'border-ink/40 text-ink' : 'border-ink/20 text-ink-soft'
+            }`}
+          >
+            {hidden > 0
+              ? hidden === 1
+                ? 'Un altro appuntamento'
+                : `Altri ${hidden} appuntamenti`
+              : moreLabel}
+            <ArrowRight size={12} className="transition-transform group-hover:translate-x-1" />
+          </button>
+        </div>
       )}
     </div>
   )

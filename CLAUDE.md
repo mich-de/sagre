@@ -62,8 +62,25 @@ npm run dev       # http://localhost:5173/sagre/  e  /sagre/admin
   basta guardare se si ripetono. `nowAround` scarta i doppioni per sicurezza, ma è una rete, non il
   progetto. Le sette coordinate stanno in **una** richiesta: l'endpoint le accetta in fila e
   risponde con un elenco nello stesso ordine.
+- **Il nome del sito si scrive in un posto solo**, `lib/site.ts`: era a mano in cinque (testata,
+  testata di stampa, titolo della home, firma dei file .ics, `index.html`) e cambiarlo voleva dire
+  trovarli tutti. `SITE_WHERE_SHORT`/`_REST` esistono perché sul telefono «e dintorni» non ci sta e
+  tre puntini non dicono niente. L'**unica** copia scritta a mano che resta è `index.html`, dove non
+  si può importare niente da `src/`: c'è un commento che lo dice, e se cambia il nome cambia
+  anche lì. Nella firma .ics le barre sono separatori del formato: un nome che ne guadagnasse una
+  va ripulito in `ics.ts` (la «&» invece non dà problemi).
 - **La logica non sta nei componenti.** Filtri, date, categorie, luoghi, ICS, meteo e locandine
   vivono in `lib/`, così barra dei filtri, home e stampa condividono lo stesso comportamento.
+- **I tre pannelli del giorno mostrano tre righe e dicono quante ne restano.** `PANEL_MAX = 3` in
+  `Home.tsx`: senza tetto la griglia si allunga sul più alto dei tre — un fine settimana di
+  ferragosto ne ha quindici e Oggi ne ha una — e la colonna di Oggi diventa un riquadro vuoto alto
+  mezzo schermo. Da qui tre conseguenze che vanno insieme: il piede annuncia **«altri quattro»**
+  (un elenco tagliato in silenzio è una bugia), le liste dei pannelli sono **ordinate** e non solo
+  filtrate (con il tetto, *quali* tre è una decisione), e il riquadro è `flex flex-col` con il piede
+  su `mt-auto`, così i tre piedi si allineano in basso. Il «vedi tutto» ce l'hanno tutti e tre:
+  Oggi e Domani non hanno bisogno di una finestra nuova nei filtri, `intervallo` con `da` e `a`
+  uguali è già «solo quel giorno» e per sovrapposizione si porta dietro le sagre lunghe cominciate
+  prima.
 - **Firestore soltanto** per le schede: `posters/{eventId}` tiene la miniatura, le immagini piene
   stanno una per documento nella sottoraccolta `photos` (`order` più basso = copertina). Tetto di
   1 MiB per documento; `MAX_PHOTOS = 12`, `MAX_LINKS = 8`, `MAX_NOTE = 2000`.
@@ -92,6 +109,7 @@ npm run dev       # http://localhost:5173/sagre/  e  /sagre/admin
 | `ics.ts` | file .ics (RFC 5545) e abbonamento al calendario | `buildIcs`, `downloadIcs`, `icsFileName`, `eventPageUrl`, `subscriptionUrl`, `webcalUrl` |
 | `weather.ts` | previsioni Open-Meteo, senza chiave | `geocode` (**cache coordinate in `localStorage`, condivisa con la mappa**), `forecast`, `nowAround`, `NOW_SPOTS`, `windFrom`, `GUSTY_KMH`, `skyOf`, `isWet`, `forecastableDays` |
 | `links.ts` | i collegamenti dell'organizzatore | riconoscimento e normalizzazione |
+| `site.ts` | il nome del sito, in un posto solo | `SITE_NAME`, `SITE_WHERE`, `SITE_WHERE_SHORT`, `SITE_WHERE_REST`, `SITE_TITLE` |
 | `firebase.ts`, `googleAuth.ts` | accesso e credenziali | — |
 
 Il resto del sito non ricalcola mai a mano né date né paesi: passa da `dates.ts` e `places.ts`.

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { CalendarDays, Info, ShieldCheck } from 'lucide-react'
+import { SITE_WHERE_SHORT, SITE_WHERE_REST } from '../lib/site'
 
 const TODAY_LINE = new Date().toLocaleDateString('it-IT', {
   weekday: 'long',
@@ -38,12 +39,26 @@ export function Header() {
       </div>
 
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <Link to="/" className="group flex items-baseline gap-2.5">
-          <span className="relative flex h-9 w-9 shrink-0 translate-y-1 items-center justify-center border-2 border-ink bg-vermiglio text-paper-hi shadow-[2px_2px_0_var(--color-ink)] transition-transform group-hover:-rotate-3">
+        <Link to="/" className="group flex min-w-0 items-center gap-2.5">
+          <span className="relative flex h-9 w-9 shrink-0 items-center justify-center border-2 border-ink bg-vermiglio text-paper-hi shadow-[2px_2px_0_var(--color-ink)] transition-transform group-hover:-rotate-3">
             <span className="font-display text-lg font-black leading-none">S</span>
           </span>
-          <span className="font-display text-2xl leading-none font-black tracking-tight text-ink sm:text-3xl">
-            Eventi <span className="font-normal italic text-vermiglio">e</span> Sagre
+          {/* Insegna su due righe, come la testata di un giornale: il nome, e
+              sotto di dove è. Il titolo è più piccolo di prima proprio per
+              questo — la riga in più non deve rubare schermo a una testata che
+              sta appiccicata in alto tutto il tempo. L'altezza vera la pubblica
+              il `ResizeObserver` qui sopra, quindi non c'è nessun numero
+              scritto a mano da correggere. */}
+          <span className="min-w-0">
+            <span className="block font-display text-xl leading-none font-black tracking-tight text-ink sm:text-2xl">
+              Eventi <span className="font-normal italic text-vermiglio">&amp;</span> Sagre
+            </span>
+            <span className="eyebrow mt-0.5 block truncate">
+              {SITE_WHERE_SHORT}
+              {/* «e dintorni» compare solo dove c'è posto: sul telefono la riga
+                  finirebbe nei tre puntini, e tre puntini non dicono niente. */}
+              <span className="hidden sm:inline">{SITE_WHERE_REST}</span>
+            </span>
           </span>
         </Link>
 

@@ -1,5 +1,6 @@
 import type { CalendarEvent } from './googleCalendar'
 import { normalizePlace } from './places'
+import { SITE_NAME } from './site'
 
 /* ---------------------------------------------------------------------------
  * "Segna in agenda" apre Google Calendar, e va bene per metà del paese.
@@ -14,7 +15,10 @@ import { normalizePlace } from './places'
  * ------------------------------------------------------------------------- */
 
 const CRLF = '\r\n'
-const PRODID = '-//Eventi e Sagre//Cartellone di paese//IT'
+/* La firma di chi ha scritto il file. Le barre sono separatori del formato, e
+   il nome ci passa dentro così com'è: se un domani `SITE_NAME` guadagna una
+   barra, va ripulita qui. La «&» invece non dà nessun problema. */
+const PRODID = `-//${SITE_NAME}//Cartellone di paese//IT`
 
 /** Barra rovescia, punto e virgola, virgola e a capo vanno protetti: nel
  *  formato sono separatori, e una sagra intitolata "Pane, amore e fantasia"
