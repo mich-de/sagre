@@ -20,6 +20,7 @@ import { CalendarView } from '../components/CalendarView'
 import { AgendaList } from '../components/AgendaList'
 import { EventCard } from '../components/EventCard'
 import { DayWeatherTag } from '../components/DayWeatherTag'
+import { NowBoard } from '../components/NowBoard'
 import { EventModal } from '../components/EventModal'
 import { DateRange } from '../components/DateRange'
 import { FilterBar } from '../components/FilterBar'
@@ -201,6 +202,11 @@ export function Home() {
           <Stat label="Fonte" value="Google Calendar" />
         </dl>
       </section>
+
+      {/* --------------------------------------------- il tempo di adesso -- */}
+      {/* Sopra "oggi e domani" perché è la stessa domanda, fatta un attimo
+          prima: uno guarda che tempo fa, e poi guarda cosa c'è stasera. */}
+      <NowBoard />
 
       {/* ------------------------------------------------- oggi e domani -- */}
       {!loading && (

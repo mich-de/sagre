@@ -244,6 +244,182 @@ export async function forecast(coords: Coords): Promise<DayWeather[]> {
   return request
 }
 
+/* --------------------------------------------------- il tempo di adesso -- */
+
+/** Il bollettino di un posto in questo momento. */
+export interface NowWeather {
+  place: string
+  /** Ora della misura, `aaaa-mm-ggThh:mm` nel fuso di Roma. Non è l'ora in cui
+   *  si è chiesta: il servizio aggiorna a scatti di un quarto d'ora, e dire
+   *  "adesso" quando il dato è di venti minuti fa è una bugia piccola ma è una
+   *  bugia. */
+  time: string
+  temp: number
+  /** Quella che si sente addosso: ad agosto in costiera i due numeri si
+   *  discostano di quattro o cinque gradi, e chi deve stare in piazza fino a
+   *  mezzanotte guarda questo. */
+  feels: number
+  humidity: number
+  /** Millimetri caduti nell'ultimo quarto d'ora. */
+  rain: number
+  code: number
+  wind: number
+  gust: number
+  /** Da dove tira, in gradi. */
+  windFrom: number
+}
+
+/** I posti del bollettino, dal golfo alla costiera.
+ *
+ *  Sono coordinate scritte a mano, e va bene così: la geografia della penisola
+ *  non cambia, a differenza di una tabella frazione→comune che invecchia a ogni
+ *  sagra nuova. Sette e non uno perché in mezzo ci sono i monti Lattari: a
+ *  Sorrento c'è il sole e a Tramonti piove, e un numero solo per tutti direbbe
+ *  la cosa giusta a metà della gente.
+ *
+ *  **Uno per cella della griglia.** Il modello gira su maglie da qualche
+ *  chilometro, e due paesi vicini ricevono lo stesso identico numero: Vico
+ *  Equense e Sorrento cadono nella stessa casella, e due schede gemelle sullo
+ *  schermo si leggono come un guasto, non come una misura. Vico Equense — che di
+ *  sagre ne ha tante — resta fuori per questo, non per dimenticanza. Chi tocca
+ *  questo elenco lo verifichi: il servizio restituisce le coordinate agganciate
+ *  alla griglia, e basta guardare se si ripetono. */
+export const NOW_SPOTS: Array<{ name: string; lat: number; lon: number }> = [
+  { name: 'Castellammare', lat: 40.695, lon: 14.483 },
+  { name: 'Sorrento', lat: 40.626, lon: 14.375 },
+  { name: 'Massa Lubrense', lat: 40.609, lon: 14.343 },
+  { name: 'Positano', lat: 40.628, lon: 14.485 },
+  { name: 'Amalfi', lat: 40.634, lon: 14.603 },
+  { name: 'Tramonti', lat: 40.696, lon: 14.632 },
+  { name: 'Ischia', lat: 40.744, lon: 13.947 },
+]
+
+/** I venti come li chiama chi va per mare, non solo la sigla: su una costa
+ *  dove si pesca da sempre, «Scirocco» dice più di «da sud-est» — e dice anche
+ *  che porta afa e mare mosso, che a una sagra in spiaggia serve saperlo. */
+const WINDS = [
+  { sigla: 'N', name: 'Tramontana' },
+  { sigla: 'NE', name: 'Grecale' },
+  { sigla: 'E', name: 'Levante' },
+  { sigla: 'SE', name: 'Scirocco' },
+  { sigla: 'S', name: 'Ostro' },
+  { sigla: 'SO', name: 'Libeccio' },
+  { sigla: 'O', name: 'Ponente' },
+  { sigla: 'NO', name: 'Maestrale' },
+]
+
+export function windFrom(deg: number): { sigla: string; name: string } {
+  const normal = (((deg % 360) + 360) % 360) / 45
+  return WINDS[Math.round(normal) % 8]
+}
+
+/** Sopra questa soglia le raffiche portano via i gazebo e fanno chiudere il
+ *  palco: è il numero per cui un organizzatore prende il telefono. */
+export const GUSTY_KMH = 50
+
+/** Il tempo di adesso invecchia in fretta, ma non tanto quanto sembra: il
+ *  servizio ricalcola ogni quarto d'ora, e chiederglielo più spesso è solo
+ *  traffico che restituisce lo stesso numero. */
+const NOW_TTL_MS = 10 * 60 * 1000
+
+const NOW_FIELDS = [
+  'temperature_2m',
+  'apparent_temperature',
+  'relative_humidity_2m',
+  'precipitation',
+  'weather_code',
+  'wind_speed_10m',
+  'wind_direction_10m',
+  'wind_gusts_10m',
+].join(',')
+
+let nowCache: { at: number; spots: NowWeather[] } | null = null
+let nowPending: Promise<NowWeather[]> | null = null
+
+interface NowResponse {
+  /** Le coordinate **agganciate alla griglia**, che non sono quelle chieste: è
+   *  la casella vera del modello, e serve a scoprire due posti che ricevono la
+   *  stessa misura. */
+  latitude?: number
+  longitude?: number
+  current?: {
+    time: string
+    temperature_2m: number
+    apparent_temperature: number
+    relative_humidity_2m: number
+    precipitation: number
+    weather_code: number
+    wind_speed_10m: number
+    wind_direction_10m: number
+    wind_gusts_10m: number
+  }
+}
+
+/** Il bollettino di tutti i posti, in **una** richiesta: Open-Meteo accetta le
+ *  coordinate in fila e risponde con un elenco nello stesso ordine. Sette
+ *  chiamate separate sarebbero sette volte il traffico per lo stesso dato.
+ *
+ *  Elenco vuoto se il servizio non risponde: una sezione che non compare è
+ *  meglio di una sezione con dentro dei buchi. */
+export async function nowAround(force = false): Promise<NowWeather[]> {
+  if (!force && nowCache && Date.now() - nowCache.at < NOW_TTL_MS) return nowCache.spots
+  if (nowPending) return nowPending
+
+  const url =
+    `${FORECAST_URL}?latitude=${NOW_SPOTS.map((s) => s.lat).join(',')}` +
+    `&longitude=${NOW_SPOTS.map((s) => s.lon).join(',')}` +
+    `&current=${NOW_FIELDS}&timezone=Europe%2FRome`
+
+  nowPending = (async () => {
+    try {
+      const res = await fetch(url)
+      if (!res.ok) return []
+      const data = (await res.json()) as NowResponse[] | NowResponse
+      /* Con una coordinata sola il servizio risponde con l'oggetto nudo invece
+         dell'elenco: qui sono sempre sette, ma la giornata in cui `NOW_SPOTS`
+         si riduce a uno non deve essere la giornata in cui la sezione sparisce
+         senza che nessuno capisca perché. */
+      const list = Array.isArray(data) ? data : [data]
+
+      const spots: NowWeather[] = []
+      /* Una casella una scheda: se due posti dell'elenco finiscono nella stessa
+         maglia del modello, il secondo si perde. Perdere una scheda è meno
+         grave che mostrarne due identiche, che chi legge chiama un guasto — e
+         `NOW_SPOTS` è scelto perché non succeda, questa è la rete sotto. */
+      const cells = new Set<string>()
+      list.forEach((entry, i) => {
+        const c = entry.current
+        const spot = NOW_SPOTS[i]
+        if (!c || !spot) return
+        const cell = `${entry.latitude},${entry.longitude}`
+        if (cells.has(cell)) return
+        cells.add(cell)
+        spots.push({
+          place: spot.name,
+          time: c.time,
+          temp: Math.round(c.temperature_2m),
+          feels: Math.round(c.apparent_temperature),
+          humidity: Math.round(c.relative_humidity_2m),
+          rain: c.precipitation ?? 0,
+          code: c.weather_code ?? 0,
+          wind: Math.round(c.wind_speed_10m),
+          gust: Math.round(c.wind_gusts_10m),
+          windFrom: c.wind_direction_10m ?? 0,
+        })
+      })
+
+      if (spots.length > 0) nowCache = { at: Date.now(), spots }
+      return spots
+    } catch {
+      return []
+    }
+  })().finally(() => {
+    nowPending = null
+  })
+
+  return nowPending
+}
+
 /* ------------------------------------------------- finestra dell'evento -- */
 
 /** I giorni della festa che cadono dentro la finestra delle previsioni, da

@@ -54,6 +54,14 @@ npm run dev       # http://localhost:5173/sagre/  e  /sagre/admin
   la riga vorrebbe dire una domanda a Open-Meteo per ognuna delle cento sagre della griglia.
   Le icone del cielo stanno in **una** tabella (`components/SkyIcon.tsx`), non una per posto che
   mostra il tempo.
+- **Un posto per cella della griglia, nel bollettino di adesso.** Open-Meteo gira su maglie da
+  qualche chilometro: Vico Equense e Sorrento cadono nella **stessa casella** e ricevono numeri
+  identici, e due schede gemelle sullo schermo si leggono come un guasto, non come una misura. Per
+  questo Vico Equense — che di sagre ne ha tante — non è in `NOW_SPOTS`. Chi tocca quell'elenco
+  verifichi gli scontri: la risposta contiene `latitude`/`longitude` **agganciate alla griglia**, e
+  basta guardare se si ripetono. `nowAround` scarta i doppioni per sicurezza, ma è una rete, non il
+  progetto. Le sette coordinate stanno in **una** richiesta: l'endpoint le accetta in fila e
+  risponde con un elenco nello stesso ordine.
 - **La logica non sta nei componenti.** Filtri, date, categorie, luoghi, ICS, meteo e locandine
   vivono in `lib/`, così barra dei filtri, home e stampa condividono lo stesso comportamento.
 - **Firestore soltanto** per le schede: `posters/{eventId}` tiene la miniatura, le immagini piene
@@ -82,7 +90,7 @@ npm run dev       # http://localhost:5173/sagre/  e  /sagre/admin
 | `nextYear.ts` | la stessa sagra l'anno prossimo | `nextYearShift` (modi `'data'` e `'giorno'`), `shiftDraft` |
 | `parseSagre.ts` | righe incollate a mano → bozze di evento, date **e orari** | `parseSagreLines`, `parseSagraLine`, `findDates`, `findTime`, `spanDays` |
 | `ics.ts` | file .ics (RFC 5545) e abbonamento al calendario | `buildIcs`, `downloadIcs`, `icsFileName`, `eventPageUrl`, `subscriptionUrl`, `webcalUrl` |
-| `weather.ts` | previsioni Open-Meteo, senza chiave | `geocode` (**cache coordinate in `localStorage`, condivisa con la mappa**), `forecast`, `skyOf`, `isWet`, `forecastableDays` |
+| `weather.ts` | previsioni Open-Meteo, senza chiave | `geocode` (**cache coordinate in `localStorage`, condivisa con la mappa**), `forecast`, `nowAround`, `NOW_SPOTS`, `windFrom`, `GUSTY_KMH`, `skyOf`, `isWet`, `forecastableDays` |
 | `links.ts` | i collegamenti dell'organizzatore | riconoscimento e normalizzazione |
 | `firebase.ts`, `googleAuth.ts` | accesso e credenziali | — |
 
@@ -95,8 +103,8 @@ propria festa, da dove arrivano i dati — nessuna logica, riusa `CATEGORIES` e 
 `pages/Home.tsx` (cartellone, tre pannelli Oggi/Domani/Fine settimana, legenda
 cliccabile, «Portalo via»), `CalendarView` (FullCalendar), `AgendaList`, `EventCard`, `EventModal`,
 `FilterBar` (tre viste: griglia, elenco, mappa), `PlacesMap` (Leaflet, caricato con `React.lazy`),
-`MonthRail`, `NoResults`, `PrintMasthead`, `WeatherStrip`, `SkyIcon`, `DayWeatherTag`, `DateRange`,
-`BackToTop`, `Header`.
+`MonthRail`, `NoResults`, `PrintMasthead`, `WeatherStrip`, `NowBoard`, `SkyIcon`, `DayWeatherTag`,
+`DateRange`, `BackToTop`, `Header`.
 
 **Ufficio manifesti** — `pages/Admin.tsx` più `admin/`: `EventForm`, `BulkActions`, `BulkAdd`,
 `CopyFromDialog`, `RepeatNextYear`, `ProgrammaEditor`, `TodoPanel`, `PartToggle`.
