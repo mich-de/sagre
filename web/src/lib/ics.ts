@@ -89,7 +89,12 @@ export function eventPageUrl(event: CalendarEvent): string {
   /* `BASE_URL` e non solo l'origine: il sito sta sotto /sagre/, e senza il
      percorso il link dentro ogni .ics porta a una pagina che non esiste. */
   const url = new URL(import.meta.env.BASE_URL, window.location.origin)
-  url.searchParams.set('e', event.id)
+  /* La query va DENTRO il cancelletto, non prima: il router è un `HashRouter`
+     e i suoi parametri li legge da lì (vedi `useHomeFilters`). Scritta fuori,
+     `?e=` non arriva a nessuno e il collegamento apre il cartellone invece
+     della sagra — che è il contrario di quel che serve a chi ha l'evento in
+     agenda e vuole la locandina. */
+  url.hash = `/?e=${encodeURIComponent(event.id)}`
   return url.toString()
 }
 

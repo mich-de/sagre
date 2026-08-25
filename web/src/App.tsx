@@ -1,6 +1,7 @@
 import { HashRouter, Routes, Route } from 'react-router-dom'
 import { Header } from './components/Header'
 import { Home } from './pages/Home'
+import { About } from './pages/About'
 import { Admin } from './pages/Admin'
 
 function App() {
@@ -10,6 +11,7 @@ function App() {
         <Header />
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/cosa-e" element={<About />} />
           <Route path="/admin" element={<Admin />} />
         </Routes>
       </div>

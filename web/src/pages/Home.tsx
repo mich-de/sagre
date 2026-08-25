@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useMemo, useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import {
   RefreshCw,
   AlertTriangle,
@@ -480,7 +481,21 @@ export function Home() {
       )}
 
       <footer className="mt-12 border-t-2 border-ink pt-4">
-        <p className="eyebrow">Stampato in proprio · Le locandine sono caricate dall'organizzatore</p>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+          <p className="eyebrow">
+            Stampato in proprio · Le locandine sono caricate dall'organizzatore
+          </p>
+          {/* Chi è appena arrivato non sa cos'è questo foglio, e chi organizza
+              una festa non sa come farla mettere. La risposta a entrambi sta
+              in fondo, dove si guarda quando si è finito di guardare. */}
+          <Link
+            to="/cosa-e"
+            className="group no-print flex items-center gap-1.5 text-[0.65rem] font-bold tracking-[0.12em] uppercase text-ink-soft transition-colors hover:text-vermiglio"
+          >
+            Cos’è questo cartellone · La tua sagra qui
+            <ArrowRight size={12} className="transition-transform group-hover:translate-x-1" />
+          </Link>
+        </div>
       </footer>
 
       {!selected && <BackToTop />}

@@ -35,6 +35,9 @@ npm run dev       # http://localhost:5173/sagre/  e  /sagre/admin
   stesso modo: cercando l'ora per prima, «dalle 12 alle 14 agosto» perde le date **in silenzio**.
   `findDates` si prende il suo pezzo, `findTime` cerca in quel che resta — e se la data non c'è lo
   dice. L'orario non si cerca mai dentro il **nome** della sagra, che è testo scritto a mano.
+- **Il router è un `HashRouter`, e la query sta *dentro* il cancelletto.** `useHomeFilters` legge da
+  `useSearchParams`, che sotto `HashRouter` guarda `#/?…`. Ogni indirizzo costruito a mano va scritto
+  `${BASE_URL}#/?e=…`: la query messa prima del `#` non arriva a nessuno, in silenzio.
 - **La logica non sta nei componenti.** Filtri, date, categorie, luoghi, ICS, meteo e locandine
   vivono in `lib/`, così barra dei filtri, home e stampa condividono lo stesso comportamento.
 - **Firestore soltanto** per le schede: `posters/{eventId}` tiene la miniatura, le immagini piene
@@ -71,7 +74,9 @@ Il resto del sito non ricalcola mai a mano né date né paesi: passa da `dates.t
 
 ## Componenti
 
-**Pubblici** — `pages/Home.tsx` (cartellone, tre pannelli Oggi/Domani/Fine settimana, legenda
+**Pubblici** — `pages/About.tsx` (`#/cosa-e`: cos'è il sito, come si usa, come far mettere la
+propria festa, da dove arrivano i dati — nessuna logica, riusa `CATEGORIES` e `webcalUrl`),
+`pages/Home.tsx` (cartellone, tre pannelli Oggi/Domani/Fine settimana, legenda
 cliccabile, «Portalo via»), `CalendarView` (FullCalendar), `AgendaList`, `EventCard`, `EventModal`,
 `FilterBar` (tre viste: griglia, elenco, mappa), `PlacesMap` (Leaflet, caricato con `React.lazy`),
 `MonthRail`, `NoResults`, `PrintMasthead`, `WeatherStrip`, `DateRange`, `BackToTop`, `Header`.
@@ -96,6 +101,11 @@ I valori d'ambiente stanno in `web/.env`, mai nel repo, e nei secret di GitHub A
 
 ## Da fare / criticità
 
+- **Dominio personalizzato: rimandato**, non scartato (25 agosto 2026). Si resta su
+  <https://mich-de.github.io/sagre/>. Il giorno che si compra un dominio servono tre cose e basta:
+  `web/public/CNAME` con dentro il dominio (il deploy passa da Actions, il file deve stare
+  nell'artefatto), i record DNS dal registrar, e `base: '/'` in `vite.config.ts` al posto di
+  `'/sagre/'` — il resto si aggiusta da solo, perché gli indirizzi passano tutti da `BASE_URL`.
 - Il bundle principale supera i 500 kB: FullCalendar e Firebase sono i due grossi, e potrebbero
   seguire la strada di Leaflet (`React.lazy`).
 - Vulnerabilità: nessuna. `npm audit` è pulito dal 24 agosto 2026 (`nanoid` risolta con

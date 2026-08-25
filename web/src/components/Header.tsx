@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { CalendarDays, ShieldCheck } from 'lucide-react'
+import { CalendarDays, Info, ShieldCheck } from 'lucide-react'
 
 const TODAY_LINE = new Date().toLocaleDateString('it-IT', {
   weekday: 'long',
@@ -10,8 +10,9 @@ const TODAY_LINE = new Date().toLocaleDateString('it-IT', {
 })
 
 export function Header() {
-  const location = useLocation()
-  const isAdmin = location.pathname.startsWith('/admin')
+  const { pathname } = useLocation()
+  const isAdmin = pathname.startsWith('/admin')
+  const isAbout = pathname.startsWith('/cosa-e')
   const ref = useRef<HTMLElement | null>(null)
 
   /* La testata è alta quanto è alta: chi ci si appoggia in `sticky` legge la
@@ -47,7 +48,13 @@ export function Header() {
         </Link>
 
         <nav className="flex shrink-0 items-center gap-1.5">
-          <NavLink to="/" active={!isAdmin} icon={<CalendarDays size={14} />} label="Calendario" />
+          <NavLink
+            to="/"
+            active={!isAdmin && !isAbout}
+            icon={<CalendarDays size={14} />}
+            label="Calendario"
+          />
+          <NavLink to="/cosa-e" active={isAbout} icon={<Info size={14} />} label="Cos’è" />
           <NavLink to="/admin" active={isAdmin} icon={<ShieldCheck size={14} />} label="Admin" />
         </nav>
       </div>
@@ -87,6 +94,9 @@ function NavLink({
   return (
     <Link
       to={to}
+      /* Sul telefono la scritta non c'è: senza questo il bottone è un'icona
+         muta per chi legge lo schermo con la voce. */
+      aria-label={label}
       className={`stamp-btn tap flex items-center gap-1.5 px-3 py-2 text-[0.65rem] font-bold tracking-[0.12em] uppercase ${
         active ? 'bg-ink text-paper-hi' : 'bg-paper-hi text-ink hover:bg-paper-2'
       }`}
