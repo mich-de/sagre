@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="window_background">#0D0D1A</color>
+    <color name="splash_background">#0D0D1A</color>
+    <color name="orange_hot">#FF6B35</color>
+</resources>

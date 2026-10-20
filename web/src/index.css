@@ -1,0 +1,775 @@
+@import "tailwindcss";
+
+/* =========================================================================
+   MANIFESTO DI PAESE
+   Il sito è un manifesto tipografico affisso al muro: carta ingiallita,
+   inchiostro nero caldo, un vermiglio da serigrafia, regole doppie da
+   giornale murale e ombre offset senza sfocatura (stampa fuori registro).
+   ========================================================================= */
+
+@theme {
+  --font-display: "Bodoni Moda", "Times New Roman", Georgia, serif;
+  --font-body: "Archivo", ui-sans-serif, system-ui, sans-serif;
+
+  /* Carta */
+  --color-paper: #f2e9d8;
+  --color-paper-hi: #fbf6ea;
+  --color-paper-2: #e6dac1;
+  --color-paper-3: #d9caab;
+
+  /* Inchiostro */
+  --color-ink: #171310;
+  --color-ink-soft: #574b3d;
+  --color-ink-faint: #8d7f6c;
+
+  /* Colori di stampa */
+  --color-vermiglio: #c8321e;
+  --color-vino: #6e1f3c;
+  --color-oliva: #41601f;
+  --color-ottanio: #175b6b;
+  --color-senape: #8a6a0a;
+  --color-prugna: #7a3b78;
+  --color-terracotta: #a8531c;
+}
+
+/* ---------------------------------------------------------------- base -- */
+
+html {
+  scroll-behavior: smooth;
+  background-color: var(--color-paper);
+  /* Altezza reale della testata, misurata dal componente: le intestazioni di
+     mese ci si appoggiano invece di indovinare un numero da desktop. */
+  --header-h: 7.5rem;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  /* Trama sottile della carta: righe orizzontali quasi invisibili. */
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(23, 19, 16, 0.022) 0px,
+    rgba(23, 19, 16, 0.022) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+}
+
+/* Grana della carta, sopra al contenuto ma sotto ai livelli modali. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  opacity: 0.55;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.3'/%3E%3C/svg%3E");
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.015em;
+}
+
+::selection {
+  background: var(--color-vermiglio);
+  color: var(--color-paper-hi);
+}
+
+/* ------------------------------------------------------------- il dito -- */
+
+/* Niente attesa del doppio tap e niente lampo azzurro di sistema: il tocco
+   deve rispondere subito e restare dentro la tavolozza della carta. */
+button,
+a,
+label,
+select,
+summary,
+[role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(200, 50, 30, 0.18);
+}
+
+/* Il timbro piccolo resta piccolo, ma sotto il dito il bersaglio è 44px:
+   l'area sensibile cresce oltre il disegno invece di gonfiarlo. */
+@media (pointer: coarse) {
+  .tap {
+    position: relative;
+  }
+  .tap::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+  /* Dove il bersaglio è una riga di testo o una pastiglia, si allarga per
+     davvero: 44px sono comodi da leggere, non solo da centrare. */
+  .tap-grow {
+    min-height: 2.5rem;
+  }
+}
+
+/* Il fuoco da tastiera deve vedersi su ogni timbro, non solo sul calendario. */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-vermiglio);
+  outline-offset: 2px;
+}
+
+/* Margini di sicurezza: sotto la barra home dell'iPhone non ci va niente di
+   cliccabile, e nei bordi arrotondati non ci va niente da leggere.
+   Attenzione: queste classi *impongono* il margine, non lo aggiungono. Su un
+   elemento che ha già una sua spaziatura usa `.page-x`, che tiene il maggiore
+   dei due, altrimenti il testo finisce a filo di schermo. */
+.safe-b {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+.safe-x {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Cornice della pagina: il margine di lettura, allargato dove il vetro è
+   arrotondato. Sostituisce `px-4 sm:px-6`, non ci si somma. */
+.page-x {
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+@media (min-width: 640px) {
+  .page-x {
+    padding-left: max(1.5rem, env(safe-area-inset-left));
+    padding-right: max(1.5rem, env(safe-area-inset-right));
+  }
+}
+
+/* --------------------------------------------------- oggetti di stampa -- */
+
+/* Occhiello: piccole maiuscole spaziate, come le diciture di servizio. */
+.eyebrow {
+  font-family: var(--font-body);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+
+/* Riquadro inchiostrato con ombra offset piena: stampa fuori registro. */
+.ink-box {
+  border: 2px solid var(--color-ink);
+  background-color: var(--color-paper-hi);
+  box-shadow: 5px 5px 0 var(--color-ink);
+}
+
+.ink-box-sm {
+  border: 2px solid var(--color-ink);
+  background-color: var(--color-paper-hi);
+  box-shadow: 3px 3px 0 var(--color-ink);
+}
+
+/* Pulsante-timbro: si "preme" verso la propria ombra. */
+.stamp-btn {
+  border: 2px solid var(--color-ink);
+  box-shadow: 3px 3px 0 var(--color-ink);
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease;
+}
+.stamp-btn:hover:not(:disabled) {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 var(--color-ink);
+}
+.stamp-btn:active:not(:disabled) {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 var(--color-ink);
+}
+.stamp-btn:disabled {
+  opacity: 0.5;
+  box-shadow: 3px 3px 0 var(--color-ink-faint);
+}
+
+/* Regola doppia da giornale murale. */
+.rule-double {
+  border-top: 3px solid var(--color-ink);
+  border-bottom: 1px solid var(--color-ink);
+  height: 4px;
+}
+
+/* Retino a mezzatinta per gli sfondi decorativi. */
+.halftone {
+  background-image: radial-gradient(var(--color-ink) 1px, transparent 1px);
+  background-size: 7px 7px;
+  opacity: 0.13;
+}
+
+/* Bandierine da sagra, disegnate in CSS lungo un bordo. */
+.bunting {
+  height: 14px;
+  background-image: linear-gradient(135deg, var(--color-ink) 25%, transparent 25%),
+    linear-gradient(225deg, var(--color-ink) 25%, transparent 25%);
+  background-size: 16px 16px;
+  background-repeat: repeat-x;
+  background-position: top left;
+}
+
+/* ------------------------------------------------------------ motion -- */
+
+@keyframes ink-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes stamp-in {
+  0% {
+    opacity: 0;
+    transform: scale(1.06) rotate(-1.2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-ink-rise {
+  animation: ink-rise 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-stamp-in {
+  animation: stamp-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.marquee-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: marquee 38s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-ink-rise,
+  .animate-stamp-in,
+  .animate-sheet-up,
+  .marquee-track {
+    animation: none !important;
+  }
+  .stamp-btn:hover:not(:disabled),
+  .stamp-btn:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* Il foglio che sale dal basso: sul telefono la scheda è un foglietto
+   infilato sotto la porta, non un riquadro piombato in mezzo allo schermo. */
+@keyframes sheet-up {
+  from {
+    transform: translateY(6%);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.animate-sheet-up {
+  animation: sheet-up 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ------------------------------------------------------ FullCalendar -- */
+/* Obiettivo: una griglia *stampata*, non un widget. Filetti sottili,
+   intestazioni in maiuscoletto spaziato, numeri in Bodoni.              */
+
+.fc {
+  --fc-border-color: rgba(23, 19, 16, 0.22);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: var(--color-paper-2);
+  --fc-list-event-hover-bg-color: var(--color-paper-2);
+  --fc-today-bg-color: rgba(200, 50, 30, 0.07);
+  font-family: var(--font-body);
+  color: var(--color-ink);
+}
+
+/* Testata */
+.fc .fc-toolbar.fc-header-toolbar {
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--color-ink);
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.fc .fc-toolbar-title {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-transform: capitalize;
+}
+
+@media (max-width: 640px) {
+  .fc .fc-toolbar-title {
+    font-size: 1.25rem;
+  }
+  .fc .fc-toolbar.fc-header-toolbar {
+    justify-content: center;
+  }
+}
+
+/* Intestazioni dei giorni */
+.fc-theme-standard th {
+  border-color: var(--color-ink);
+  border-width: 0 0 2px 0;
+}
+
+.fc .fc-col-header-cell-cushion {
+  padding: 0.5rem 0.35rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+/* Celle */
+.fc-theme-standard td,
+.fc-theme-standard .fc-scrollgrid {
+  border-color: rgba(23, 19, 16, 0.2);
+}
+
+.fc-theme-standard .fc-scrollgrid {
+  border-width: 0;
+}
+
+.fc .fc-daygrid-day-number {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-ink-soft);
+  padding: 0.3rem 0.45rem;
+}
+
+.fc .fc-day-other .fc-daygrid-day-number {
+  opacity: 0.32;
+}
+
+/* Oggi: numero cerchiato a inchiostro rosso, come segnato a penna. */
+.fc .fc-day-today .fc-daygrid-day-number {
+  color: var(--color-paper-hi);
+  background: var(--color-vermiglio);
+  border-radius: 999px;
+  min-width: 1.6rem;
+  text-align: center;
+  padding: 0.15rem 0.4rem;
+  margin: 0.25rem;
+}
+
+/* Eventi: blocchi pieni con filetto d'inchiostro. */
+.fc-event {
+  cursor: pointer;
+  border: none !important;
+  border-radius: 3px !important;
+  box-shadow: 1.5px 1.5px 0 var(--color-ink);
+  transition:
+    transform 110ms ease,
+    box-shadow 110ms ease;
+}
+
+.fc-daygrid-event {
+  margin: 1.5px 3px !important;
+  padding: 0 !important;
+  /* Senza questo un titolo lungo esce dalla cella e si sovrappone al giorno
+     accanto: la griglia diventa illeggibile nelle settimane piene. */
+  overflow: hidden;
+}
+
+.fc-event:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 2.5px 2.5px 0 var(--color-ink);
+}
+
+/* Le sagre lunghe sono un blocco unico che attraversa la settimana: niente
+   angoli tondi sui lati in cui il blocco prosegue. */
+.fc-daygrid-block-event .fc-event-title {
+  padding: 0;
+  font-weight: 600;
+}
+
+.fc-event.fc-event-start:not(.fc-event-end) {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+.fc-event.fc-event-end:not(.fc-event-start) {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+.fc-event:not(.fc-event-start):not(.fc-event-end) {
+  border-radius: 0 !important;
+}
+
+/* Feste annullate: barrate e slavate, ma ancora leggibili — chi arriva in
+   piazza deve capire che l'appuntamento c'era e non c'è più. */
+.fc-event.is-cancelled {
+  opacity: 0.55;
+  text-decoration: line-through;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(23, 19, 16, 0.35) 0 3px,
+    transparent 3px 7px
+  );
+}
+
+/* Celle più alte: con quattro eventi al giorno la griglia stava stretta. */
+.fc .fc-daygrid-day-frame {
+  min-height: 6.6rem;
+}
+
+@media (max-width: 640px) {
+  /* Due eventi al giorno più il "+n": in 4.4rem non ce ne stavano quattro,
+     si accavallavano. La cella cresce e il resto passa dal foglietto. */
+  .fc .fc-daygrid-day-frame {
+    min-height: 5.2rem;
+  }
+  .fc .fc-daygrid-day-number {
+    font-size: 0.85rem;
+    padding: 0.2rem 0.3rem;
+  }
+  .fc .fc-col-header-cell-cushion {
+    padding: 0.4rem 0.15rem;
+    font-size: 0.55rem;
+    letter-spacing: 0.08em;
+  }
+  .fc-daygrid-event {
+    margin: 1px 2px !important;
+  }
+  /* Il foglietto "+n altri" a tutto schermo: sul telefono un popover di
+     200px incastrato in un angolo non si legge e si chiude per sbaglio. */
+  .fc .fc-popover {
+    position: fixed !important;
+    inset: auto 0.5rem 0.5rem 0.5rem !important;
+    max-height: 70vh;
+    max-height: 70dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .fc .fc-daygrid-more-link {
+    font-size: 0.6rem;
+    padding: 0.15rem 0.25rem;
+  }
+}
+
+/* Contatore delle feste del giorno, in alto a sinistra nella cella. */
+.fc-day-count {
+  font-family: var(--font-body);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--color-ink-faint);
+  border: 1px solid rgba(23, 19, 16, 0.25);
+  padding: 0 0.25rem;
+}
+
+.fc .fc-day-today .fc-day-count {
+  color: var(--color-vermiglio);
+  border-color: var(--color-vermiglio);
+}
+
+/* Oggi: oltre al numero cerchiato, la cella prende un filetto rosso. */
+.fc .fc-day-today {
+  box-shadow: inset 0 0 0 2px var(--color-vermiglio);
+}
+
+/* Riquadro "+n altri": un foglietto di carta appuntato. */
+.fc .fc-popover {
+  border: 2px solid var(--color-ink);
+  border-radius: 0;
+  background: var(--color-paper-hi);
+  box-shadow: 5px 5px 0 var(--color-ink);
+}
+
+.fc .fc-popover-header {
+  background: var(--color-paper-2);
+  border-bottom: 2px solid var(--color-ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: capitalize;
+  color: var(--color-ink);
+}
+
+.fc .fc-daygrid-more-link {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-vermiglio);
+}
+
+/* Pulsanti della testata: timbri d'inchiostro. */
+.fc .fc-button-primary,
+.fc .fc-button-primary:disabled {
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.4rem 0.7rem;
+  border-radius: 2px;
+  background-color: var(--color-paper-hi);
+  border: 2px solid var(--color-ink);
+  color: var(--color-ink);
+  box-shadow: 2px 2px 0 var(--color-ink);
+  opacity: 1;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease;
+}
+
+.fc .fc-button-primary:not(:disabled):hover {
+  background-color: var(--color-paper-2);
+  border-color: var(--color-ink);
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--color-ink);
+}
+
+/* Vista selezionata: inchiostrata in pieno. */
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+  background-color: var(--color-vermiglio);
+  border-color: var(--color-ink);
+  color: var(--color-paper-hi);
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--color-ink);
+}
+
+.fc .fc-button-primary:disabled {
+  color: var(--color-ink-faint);
+  border-color: var(--color-ink-faint);
+  box-shadow: 2px 2px 0 var(--color-ink-faint);
+}
+
+.fc .fc-button-primary:focus,
+.fc .fc-button-primary:focus-visible {
+  outline: 2px solid var(--color-vermiglio);
+  outline-offset: 2px;
+  box-shadow: 2px 2px 0 var(--color-ink);
+}
+
+.fc .fc-button-group > .fc-button {
+  margin-left: 0.35rem;
+}
+.fc .fc-button-group > .fc-button:first-child {
+  margin-left: 0;
+}
+
+/* ---------------------------------------------------------- Leaflet -- */
+/* Le mattonelle di OpenStreetMap sono grigio-azzurre da atlante scolastico: in
+   mezzo a un manifesto di carta ingiallita stonano come una fotografia a
+   colori incollata su un giornale del '52. Un filtro seppia le riporta sul
+   tono della pagina — costa una riga e non tocca i dati. */
+.leaflet-container {
+  background: var(--color-paper-2);
+  font-family: var(--font-body);
+}
+.leaflet-tile-pane {
+  filter: sepia(0.55) saturate(0.7) contrast(1.05) brightness(1.02);
+}
+
+/* I pallini dei paesi. Il colore sta qui e non nelle opzioni di Leaflet perché
+   qui ci sono già tutti gli altri colori di stampa, e perché negli attributi
+   SVG le variabili CSS non si possono usare. */
+.sagra-pin {
+  fill: var(--color-vermiglio);
+  fill-opacity: 0.75;
+  stroke: var(--color-ink);
+  stroke-width: 2;
+  cursor: pointer;
+  transition: fill-opacity 120ms ease-out;
+}
+.sagra-pin:hover {
+  fill-opacity: 0.95;
+}
+.sagra-pin.is-active {
+  fill: var(--color-senape);
+  fill-opacity: 1;
+  stroke-width: 3;
+}
+
+/* Etichetta al passaggio del dito o del mouse: un cartellino di carta, non la
+   nuvoletta bianca arrotondata di serie. */
+.leaflet-tooltip.sagra-tip {
+  border: 2px solid var(--color-ink);
+  border-radius: 0;
+  background: var(--color-paper-hi);
+  box-shadow: 2px 2px 0 var(--color-ink);
+  color: var(--color-ink);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.15rem 0.4rem;
+}
+.leaflet-tooltip.sagra-tip::before {
+  display: none;
+}
+
+/* Comandi e attribuzione: quadrati e a inchiostro, come i pulsanti timbro. */
+.leaflet-bar,
+.leaflet-bar a {
+  border-radius: 0 !important;
+  border-color: var(--color-ink);
+  background: var(--color-paper-hi);
+  color: var(--color-ink);
+}
+.leaflet-bar a:hover {
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+}
+.leaflet-control-attribution {
+  background: color-mix(in srgb, var(--color-paper-hi) 88%, transparent) !important;
+  color: var(--color-ink-soft);
+  font-size: 0.6rem;
+}
+.leaflet-control-attribution a {
+  color: var(--color-ink);
+}
+
+/* Barra di scorrimento coerente con la carta. */
+* {
+  scrollbar-color: var(--color-ink-faint) transparent;
+  scrollbar-width: thin;
+}
+
+/* Nastri che si scorrono col dito: la barra ruberebbe altezza a una striscia
+   alta due centimetri, e lì il gesto è già chiaro da solo. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* =========================================================================
+   ALLA STAMPANTE
+   Il sito finge di essere un manifesto affisso al muro: sulla carta smette di
+   fingere. Si toglie tutto quello che si tocca — testata, filtri, pulsanti —
+   e resta il cartellone, in colonna, come si legge davanti al bar.
+   ========================================================================= */
+
+@media print {
+  @page {
+    margin: 14mm;
+  }
+
+  /* Fondo bianco: la carta ingiallita è già carta, ridipingerla vuol dire
+     scaricare una cartuccia per pagina. I colori piccoli invece restano —
+     le tacche di categoria senza colore non dicono più niente. */
+  html,
+  body {
+    background: #fff !important;
+    background-image: none !important;
+    color: #000;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Niente di quel che si tocca, e niente di quel che serve solo a muoversi
+     nella pagina: su un foglio non si filtra, non si sfoglia, non si torna
+     in cima. */
+  header,
+  .no-print,
+  [role="dialog"],
+  [data-print="hide"] {
+    display: none !important;
+  }
+
+  /* L'ombra fuori registro è il vezzo dello schermo: in stampa diventa un
+     rettangolo nero pieno da mezzo centimetro, su ogni scheda. */
+  * {
+    box-shadow: none !important;
+  }
+
+  /* La carta crema non sta solo nei riquadri: senza questa riga ogni scheda
+     del cartellone si porta dietro il suo fondo, e il foglio esce velato di
+     toner da cima a fondo. Le tacche di categoria hanno il colore scritto
+     nell'attributo `style`, quindi restano. */
+  .ink-box,
+  .ink-box-sm,
+  .stamp-btn,
+  [class*="bg-paper"] {
+    background-color: #fff !important;
+  }
+  .ink-box,
+  .ink-box-sm {
+    border-width: 1.5px !important;
+  }
+
+  /* Le animazioni d'ingresso lasciano gli elementi trasparenti se la stampa
+     parte prima che finiscano: sul foglio uscirebbero mezzi bianchi. */
+  .animate-ink-rise,
+  .animate-stamp-in,
+  .animate-sheet-up {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  /* Una sagra non si spezza tra due fogli. */
+  li,
+  .ink-box-sm,
+  .fc-daygrid-day {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Il calendario a griglia ci sta in un foglio solo se rimpicciolisce, e
+     senza barre di scorrimento che sullo schermo nascondono metà mese. */
+  .fc {
+    font-size: 8pt;
+  }
+  .fc .fc-scroller {
+    overflow: visible !important;
+    height: auto !important;
+  }
+  .fc .fc-daygrid-body,
+  .fc table {
+    width: 100% !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  a {
+    text-decoration: none;
+    color: #000;
+  }
+}
